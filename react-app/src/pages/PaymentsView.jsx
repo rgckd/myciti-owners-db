@@ -22,9 +22,10 @@ export default function PaymentsView() {
     try {
       const [pays, hs] = await Promise.all([getPayments({}), getPaymentHeads()])
       pays.sort((a, b) => {
-        const da = new Date(a.PaymentDate || a.RecordedAt || 0)
-        const db = new Date(b.PaymentDate || b.RecordedAt || 0)
-        return db - da
+        if (!a.PaymentDate && !b.PaymentDate) return 0
+        if (!a.PaymentDate) return 1
+        if (!b.PaymentDate) return -1
+        return new Date(b.PaymentDate) - new Date(a.PaymentDate)
       })
       setPayments(pays)
       setHeads(hs)
@@ -126,7 +127,7 @@ export default function PaymentsView() {
                   onMouseLeave={e => { e.currentTarget.style.background = '' }}
                 >
                   <td style={{ padding: '10px 8px', color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>
-                    {formatDate(p.PaymentDate || p.RecordedAt)}
+                    {formatDate(p.PaymentDate)}
                   </td>
                   <td style={{ padding: '10px 8px' }}>
                     <div style={{ fontWeight: 500 }}>
