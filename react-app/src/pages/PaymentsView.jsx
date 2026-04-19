@@ -100,16 +100,7 @@ export default function PaymentsView() {
         ) : filtered.length === 0 ? (
           <div className="empty-state"><p>No payments found</p></div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
-            <colgroup>
-              <col style={{ width: 110 }} />
-              <col style={{ width: 200 }} />
-              <col />
-              <col style={{ width: 90 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 140 }} />
-              <col style={{ width: 110 }} />
-            </colgroup>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{
                 position: 'sticky', top: 0,
@@ -138,7 +129,7 @@ export default function PaymentsView() {
                   <td style={{ padding: '10px 8px', color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>
                     {formatDate(p.PaymentDate)}
                   </td>
-                  <td style={{ padding: '10px 8px', overflow: 'hidden' }}>
+                  <td style={{ padding: '10px 8px', maxWidth: 220 }}>
                     <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {p.SiteNo ? `Site ${p.SiteNo}` : p.SiteID}
                       {p.Phase ? <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}> · Ph {p.Phase}</span> : null}
@@ -147,7 +138,7 @@ export default function PaymentsView() {
                       <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.OwnerName}</div>
                     )}
                   </td>
-                  <td style={{ padding: '10px 8px', color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '10px 8px', color: 'var(--ink-2)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {headName(p.HeadID)}
                   </td>
                   <td style={{ padding: '10px 8px', fontWeight: 600, color: 'var(--paid)', whiteSpace: 'nowrap' }}>
