@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { getPayments, getPaymentHeads, updatePayment, getUploadFolder } from '../utils/api.js'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { getPayments, getPaymentHeads, updatePayment, uploadFileToDrive } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canEdit, formatCurrency, formatDate } from '../utils/constants.js'
 import PaymentModal from '../components/PaymentModal.jsx'
@@ -180,24 +180,36 @@ export default function PaymentsView() {
   )
 }
 
+function toDateInput(val) {
+  if (!val) return ''
+  const s = String(val)
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
+  const d = new Date(val)
+  return isNaN(d) ? '' : d.toISOString().slice(0, 10)
+}
+
 function EditPaymentModal({ payment, heads, onClose, onSaved }) {
   const [amount, setAmount]   = useState(String(payment.Amount || ''))
   const [mode, setMode]       = useState(payment.Mode || '')
-  const [date, setDate]       = useState(payment.PaymentDate || '')
+  const [date, setDate]       = useState(toDateInput(payment.PaymentDate))
   const [receiptNo, setReceiptNo] = useState(payment.ReceiptNo || '')
   const [bankRef, setBankRef] = useState(payment.BankRef || '')
   const [proofUrl, setProofUrl] = useState(payment.ProofURL || '')
-  const [folderLoading, setFolderLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
+  const fileInputRef = useRef(null)
 
-  async function openDriveFolder() {
-    setFolderLoading(true)
+  async function handleFileSelect(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    e.target.value = ''
+    setUploading(true); setError('')
     try {
-      const { folderUrl } = await getUploadFolder('Payments', payment.PaymentID)
-      window.open(folderUrl, '_blank')
-    } catch (e) { setError(e.message) }
-    finally { setFolderLoading(false) }
+      const url = await uploadFileToDrive(file, payment.PaymentID)
+      setProofUrl(url)
+    } catch (err) { setError(err.message) }
+    finally { setUploading(false) }
   }
 
   const headName = heads.find(h => h.HeadID === payment.HeadID)?.HeadName || payment.HeadID
@@ -288,17 +300,24 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
           <div>
             <label className="label">Receipt / proof</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+              />
               <button
                 className="btn btn-ghost btn-sm"
-                disabled={folderLoading}
-                onClick={openDriveFolder}
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
                 style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
               >
-                {folderLoading ? 'Opening…' : '↑ Upload to Drive'}
+                {uploading ? 'Uploading…' : '↑ Upload receipt'}
               </button>
               <input
                 className="input"
-                placeholder="Paste Drive link after uploading"
+                placeholder="Or paste Drive link"
                 value={proofUrl}
                 onChange={e => setProofUrl(e.target.value)}
                 style={{ flex: 1 }}
