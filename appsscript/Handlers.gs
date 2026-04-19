@@ -579,11 +579,11 @@ function verifyMember(membershipId) {
   );
   if (!owner) return {
     found: false,
-    message: 'No active membership found for this ID. For queries, contact MyCiti Owners Association at database.mycitibidadi.com.'
+    message: 'No active membership found for this ID. For queries, contact MyCiti Owners Association at adminapp.mycitibidadi.com.'
   };
   if (owner.IsCurrent !== 'TRUE') return {
     found: false,
-    message: 'No active membership found for this ID. For queries, contact MyCiti Owners Association at database.mycitibidadi.com.'
+    message: 'No active membership found for this ID. For queries, contact MyCiti Owners Association at adminapp.mycitibidadi.com.'
   };
   const people = sheetToObjects(CONFIG.TABS.PEOPLE);
   const person = people.find(p => p.PersonID === owner.PersonID);

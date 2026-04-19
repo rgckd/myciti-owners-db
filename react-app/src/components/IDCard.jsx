@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { initials, formatDate } from '../utils/constants.js'
 
-const VERIFY_BASE = 'https://database.mycitibidadi.com/verify'
+const VERIFY_BASE = 'https://adminapp.mycitibidadi.com/verify'
 
 export default function IDCard({ ownership, person }) {
   const canvasRef = useRef(null)

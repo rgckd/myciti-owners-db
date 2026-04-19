@@ -68,7 +68,7 @@ ADMIN_EMAIL       →  your Google email (App Admin account)
 3. Enable: **Google Identity Services API**
 4. Create OAuth 2.0 credentials → **Web application**
 5. Add authorised JavaScript origins:
-   - `https://database.mycitibidadi.com`
+   - `https://adminapp.mycitibidadi.com`
    - `http://localhost:5173` (for dev)
 6. Copy the Client ID
 
@@ -80,7 +80,7 @@ ADMIN_EMAIL       →  your Google email (App Admin account)
 4. Go to **Settings → Secrets and variables → Actions → New repository secret**:
    - `VITE_APPS_SCRIPT_URL` → your Apps Script deployment URL
    - `VITE_GOOGLE_CLIENT_ID` → your OAuth client ID
-5. Go to **Settings → Pages → Custom domain** → enter `database.mycitibidadi.com`
+5. Go to **Settings → Pages → Custom domain** → enter `adminapp.mycitibidadi.com`
 6. Add a CNAME DNS record at your domain registrar:
    - Type: CNAME
    - Name: www
@@ -89,7 +89,7 @@ ADMIN_EMAIL       →  your Google email (App Admin account)
 ### 6. First deploy
 
 Push to `main` branch — GitHub Actions will build and deploy automatically.
-Check Actions tab for build status. Site will be live at `database.mycitibidadi.com`.
+Check Actions tab for build status. Site will be live at `adminapp.mycitibidadi.com`.
 
 ### 7. Add first user
 

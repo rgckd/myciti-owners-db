@@ -53,10 +53,10 @@ export default function Verify() {
           <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>
             {result?.message || `No active membership found for ID: ${membershipId}`}
           </div>
-          <a href="https://database.mycitibidadi.com" style={{
+          <a href="https://adminapp.mycitibidadi.com" style={{
             display: 'inline-block', marginTop: 20, fontSize: 12, color: 'var(--tc)'
           }}>
-            database.mycitibidadi.com
+            adminapp.mycitibidadi.com
           </a>
         </div>
       ) : result.status === 'disputed' ? (
@@ -123,7 +123,7 @@ export default function Verify() {
 
             <div style={{ marginTop: 20, fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.6, textAlign: 'center' }}>
               This verification is issued by MyCiti Owners Association.<br />
-              For queries: <a href="https://database.mycitibidadi.com" style={{ color: 'var(--tc)' }}>database.mycitibidadi.com</a>
+              For queries: <a href="https://adminapp.mycitibidadi.com" style={{ color: 'var(--tc)' }}>adminapp.mycitibidadi.com</a>
             </div>
           </div>
         </div>
