@@ -100,15 +100,15 @@ export default function PaymentsView() {
         ) : filtered.length === 0 ? (
           <div className="empty-state"><p>No payments found</p></div>
         ) : (
-          <table style={{ width: '100%', minWidth: 980, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: 'max-content', minWidth: 0, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
             <colgroup>
-              <col style={{ width: '11%' }} />
-              <col style={{ width: '22%' }} />
-              <col style={{ width: '26%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '11%' }} />
-              <col style={{ width: '8%' }} />
+              <col style={{ width: 92 }} />
+              <col style={{ width: 150 }} />
+              <col style={{ width: 290 }} />
+              <col style={{ width: 98 }} />
+              <col style={{ width: 104 }} />
+              <col style={{ width: 126 }} />
+              <col style={{ width: 86 }} />
             </colgroup>
             <thead>
               <tr style={{
