@@ -306,6 +306,22 @@ function getPayments(params) {
   let pays = sheetToObjects(CONFIG.TABS.PAYMENTS);
   if (params.siteId) pays = pays.filter(p => p.SiteID === params.siteId);
   if (params.headId) pays = pays.filter(p => p.HeadID === params.headId);
+
+  // When fetching all payments, enrich with site + owner info
+  if (!params.siteId) {
+    const sites    = sheetToObjects(CONFIG.TABS.SITES);
+    const owners   = sheetToObjects(CONFIG.TABS.OWNERS);
+    const people   = sheetToObjects(CONFIG.TABS.PEOPLE);
+    const siteMap  = Object.fromEntries(sites.map(s => [s.SiteID, s]));
+    const peopleMap= Object.fromEntries(people.map(p => [p.PersonID, p]));
+    pays = pays.map(p => {
+      const site = siteMap[p.SiteID] || {};
+      const owner= owners.find(o => o.SiteID === p.SiteID && (o.IsCurrent === 'TRUE' || o.IsCurrent === true));
+      const person = owner ? peopleMap[owner.PersonID] : null;
+      return { ...p, SiteNo: site.SiteNo || '', Phase: site.Phase || '', OwnerName: person ? person.FullName : '' };
+    });
+  }
+
   return pays;
 }
 
@@ -324,17 +340,6 @@ function createPayment(params, caller) {
 }
 
 function updatePayment(params, caller, role) {
-  // Time-window check: 48hrs for Payments role, unlimited for Edit
-  if (role !== CONFIG.ROLES.EDIT && role !== 'Admin') {
-    const found = findRow(CONFIG.TABS.PAYMENTS, 'PaymentID', params.paymentId);
-    if (found) {
-      const headers = found.headers;
-      const createdAtIdx = headers.indexOf('CreatedAt');
-      const createdAt = new Date(found.row[createdAtIdx]);
-      const hoursAgo = (Date.now() - createdAt.getTime()) / 3600000;
-      if (hoursAgo > 48) throw new Error('Payment can only be edited within 48 hours by non-Edit roles');
-    }
-  }
   const allowed = ['Amount','Mode','PaymentDate','ReceiptNo','BankRef','ProofURL'];
   const fields = {};
   allowed.forEach(f => { if (params[f] !== undefined) fields[f] = params[f]; });
