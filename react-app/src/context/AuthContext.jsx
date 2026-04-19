@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
       const payload = JSON.parse(atob(idToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))
       const res = await fetch(APPS_SCRIPT_URL, {
         method: 'POST', redirect: 'follow',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action: 'whoami', token: idToken }),
       })
       const data = await res.json()

@@ -8,11 +8,12 @@ export function getToken() { return _idToken }
 
 async function call(action, params = {}, method = 'POST') {
   if (!BASE_URL) throw new Error('VITE_APPS_SCRIPT_URL not configured')
-  const body = { action, token: _idToken, ...params }
+  const body = JSON.stringify({ action, token: _idToken, ...params })
   const res = await fetch(BASE_URL, {
     method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    // text/plain avoids CORS preflight — Apps Script does not handle OPTIONS requests
+    headers: { 'Content-Type': 'text/plain' },
+    body,
     redirect: 'follow',
   })
   const text = await res.text()
