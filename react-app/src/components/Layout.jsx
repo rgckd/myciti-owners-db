@@ -4,13 +4,10 @@ import { initials } from '../utils/constants.js'
 import styles from './Layout.module.css'
 
 const NAV = [
-  { to: '/',           label: 'Site registry',  icon: GridIcon,   always: true },
-  { to: '/people',     label: 'Owners',          icon: PersonIcon, always: true },
-  { to: '/agents',     label: 'Agents',          icon: AgentIcon,  always: true },
-  { to: '/defaulters', label: 'Defaulters',      icon: AlertIcon,  always: true },
-  { to: '/followups',  label: 'Follow-ups',      icon: ClockIcon,  always: true },
-  { to: '/audit',      label: 'Audit log',       icon: LogIcon,    roles: ['Edit', 'Admin'] },
-  { to: '/admin',      label: 'Admin',           icon: GearIcon,   roles: ['Admin'] },
+  { to: '/',       label: 'Site registry', icon: GridIcon,   always: true },
+  { to: '/people', label: 'Owners',        icon: PersonIcon, always: true },
+  { to: '/audit',  label: 'Audit log',     icon: LogIcon,    roles: ['Admin'] },
+  { to: '/admin',  label: 'Admin',         icon: GearIcon,   roles: ['Admin'] },
 ]
 
 export default function Layout({ children }) {

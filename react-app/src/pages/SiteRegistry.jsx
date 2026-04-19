@@ -33,9 +33,9 @@ export default function SiteRegistry() {
   const [search, setSearch] = useState('')
   const [phase, setPhase] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
-  const [flagFilter, setFlagFilter] = useState(false)
-  const [ownerFlagFilter, setOwnerFlagFilter] = useState(false)
-  const [membersOnly, setMembersOnly] = useState(false)
+  const [memberFilter, setMemberFilter] = useState('all') // 'all' | 'members' | 'non-members'
+  const [payFilter, setPayFilter] = useState('')          // '' | 'paid' | 'partial' | 'unpaid'
+  const [flaggedFilter, setFlaggedFilter] = useState(false)
 
   // Sort (up to 3 levels)
   const [sorts, setSorts] = useState([{ field: 'SiteNo', dir: 'asc' }])
@@ -62,9 +62,10 @@ export default function SiteRegistry() {
   const filtered = useMemo(() => {
     let list = [...sites]
     if (phase !== 'All') list = list.filter(s => String(s.Phase) === phase)
-    if (membersOnly) list = list.filter(s => !!s.membershipNo)
-    if (flagFilter) list = list.filter(s => s.FlaggedForAttention === 'TRUE')
-    if (ownerFlagFilter) list = list.filter(s => s.ownerFlagged === true)
+    if (memberFilter === 'members') list = list.filter(s => !!s.membershipNo)
+    if (memberFilter === 'non-members') list = list.filter(s => !s.membershipNo)
+    if (payFilter) list = list.filter(s => s.payStatus === payFilter)
+    if (flaggedFilter) list = list.filter(s => s.FlaggedForAttention === 'TRUE' || s.ownerFlagged === true)
     if (search) {
       const q = search.toLowerCase()
       list = list.filter(s =>
@@ -90,7 +91,7 @@ export default function SiteRegistry() {
       return 0
     })
     return list
-  }, [sites, phase, search, membersOnly, flagFilter, ownerFlagFilter, sorts])
+  }, [sites, phase, search, memberFilter, payFilter, flaggedFilter, sorts])
 
   function addSort() {
     if (sorts.length >= 3) return
@@ -176,40 +177,37 @@ export default function SiteRegistry() {
         }}>
           {/* Phase */}
           {['All', '1', '2'].map(p => (
-            <button
-              key={p}
+            <button key={p}
               className={`btn btn-sm ${phase === p ? '' : 'btn-ghost'}`}
               style={phase === p ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
               onClick={() => setPhase(p)}
-            >
-              {p === 'All' ? 'All phases' : `Phase ${p}`}
-            </button>
+            >{p === 'All' ? 'All phases' : `Phase ${p}`}</button>
           ))}
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-          {/* Members filter */}
-          <button
-            className={`btn btn-sm ${membersOnly ? '' : 'btn-ghost'}`}
-            style={membersOnly ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
-            onClick={() => setMembersOnly(f => !f)}
-          >
-            Members
-          </button>
+          {/* Membership */}
+          {[['all','All'],['members','Members'],['non-members','Non-members']].map(([val, label]) => (
+            <button key={val}
+              className={`btn btn-sm ${memberFilter === val ? '' : 'btn-ghost'}`}
+              style={memberFilter === val ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
+              onClick={() => setMemberFilter(val)}
+            >{label}</button>
+          ))}
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-          {/* Flag filters */}
+          {/* Payment status */}
+          {[['paid','Paid'],['partial','Partial'],['unpaid','Unpaid']].map(([val, label]) => (
+            <button key={val}
+              className={`btn btn-sm ${payFilter === val ? '' : 'btn-ghost'}`}
+              style={payFilter === val ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
+              onClick={() => setPayFilter(f => f === val ? '' : val)}
+            >{label}</button>
+          ))}
+          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
+          {/* Flagged */}
           <button
-            className={`btn btn-sm ${flagFilter ? '' : 'btn-ghost'}`}
-            style={flagFilter ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
-            onClick={() => setFlagFilter(f => !f)}
-          >
-            🚩 Site flagged
-          </button>
-          <button
-            className={`btn btn-sm ${ownerFlagFilter ? '' : 'btn-ghost'}`}
-            style={ownerFlagFilter ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
-            onClick={() => setOwnerFlagFilter(f => !f)}
-          >
-            ⚑ Owner flagged
-          </button>
+            className={`btn btn-sm ${flaggedFilter ? '' : 'btn-ghost'}`}
+            style={flaggedFilter ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
+            onClick={() => setFlaggedFilter(f => !f)}
+          >🚩 Flagged</button>
         </div>
 
         {/* Sort controls */}
