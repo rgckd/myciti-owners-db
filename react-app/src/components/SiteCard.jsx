@@ -1,17 +1,14 @@
 import { initials } from '../utils/constants.js'
 
-const EDGE_COLORS = {
-  paid:      'var(--paid)',
-  partial:   'var(--partial)',
-  unpaid:    'var(--partial)',
-  disputed:  'var(--disputed)',
-  nocontact: 'var(--nocontact)',
+const PHASE_COLORS = {
+  '1': '#2B6CB0',
+  '2': '#276749',
 }
 
 export default function SiteCard({ site, selected, onClick }) {
   const hasContact = !!(site.mobile)
   const payStatus = site.payStatus || (hasContact ? 'unpaid' : 'nocontact')
-  const edgeColor = EDGE_COLORS[payStatus] || EDGE_COLORS.nocontact
+  const edgeColor = PHASE_COLORS[String(site.Phase)] || 'var(--nocontact)'
   const isSiteFlagged  = site.FlaggedForAttention === 'TRUE'
   const isOwnerFlagged = site.ownerFlagged === true
 

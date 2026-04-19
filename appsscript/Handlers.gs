@@ -36,7 +36,7 @@ function getSites(params) {
     const person = firstOwner ? peopleMap[firstOwner.PersonID] : null;
 
     // Derive payment status
-    let payStatus = 'nocontact';
+    let payStatus;
     if (!person || (!person.Mobile1 && !person.Mobile2 && !person.Email)) {
       payStatus = 'nocontact';
     } else if (firstOwner && firstOwner.Status === 'Disputed') {
@@ -58,6 +58,8 @@ function getSites(params) {
         }
       }
       payStatus = allPaid ? 'paid' : anyPartial ? 'partial' : 'unpaid';
+    } else {
+      payStatus = 'unpaid';
     }
 
     return {
@@ -443,7 +445,7 @@ function getStats() {
   const heads = sheetToObjects(CONFIG.TABS.PAYMENT_HEADS).filter(h => h.IsActive === 'TRUE');
 
   const totalSites = sites.length;
-  const totalMembers = owners.filter(o => o.MembershipNo && o.IsCurrent === 'TRUE').length;
+  const totalMembers = owners.filter(o => o.MembershipNo && (o.IsCurrent === 'TRUE' || o.IsCurrent === true)).length;
   const flaggedSites = sites.filter(s => s.FlaggedForAttention === 'TRUE').length;
   const flaggedOwners = owners.filter(o => o.FlaggedForAttention === 'TRUE').length;
 
