@@ -38,7 +38,7 @@ export default function SiteRegistry() {
   const [flaggedFilter, setFlaggedFilter] = useState(false)
 
   // Sort (up to 3 levels)
-  const [sorts, setSorts] = useState([{ field: 'SiteNo', dir: 'asc' }])
+  const [sorts, setSorts] = useState([{ field: 'Phase', dir: 'asc' }, { field: 'SiteNo', dir: 'asc' }])
 
   function commitSearch() { setSearch(searchInput) }
 
@@ -184,12 +184,12 @@ export default function SiteRegistry() {
             >{p === 'All' ? 'All phases' : `Phase ${p}`}</button>
           ))}
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-          {/* Membership */}
-          {[['all','All'],['members','Members'],['non-members','Non-members']].map(([val, label]) => (
+          {/* Membership — toggle on/off */}
+          {[['members','Members'],['non-members','Non-members']].map(([val, label]) => (
             <button key={val}
               className={`btn btn-sm ${memberFilter === val ? '' : 'btn-ghost'}`}
               style={memberFilter === val ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
-              onClick={() => setMemberFilter(val)}
+              onClick={() => setMemberFilter(f => f === val ? 'all' : val)}
             >{label}</button>
           ))}
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />

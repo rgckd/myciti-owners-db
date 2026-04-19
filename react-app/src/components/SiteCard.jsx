@@ -1,17 +1,11 @@
 import { initials } from '../utils/constants.js'
 
-const PAY_EDGE = {
-  paid:      '#3B6D11',
-  partial:   '#854F0B',
-  unpaid:    '#C05621',
-  disputed:  '#A32D2D',
-  nocontact: '#9CA3AF',
-}
+const PHASE_COLORS = { '1': '#2B6CB0', '2': '#276749' }
 
 export default function SiteCard({ site, selected, onClick }) {
   const hasContact = !!(site.mobile)
   const payStatus = site.payStatus || (hasContact ? 'unpaid' : 'nocontact')
-  const edgeColor = PAY_EDGE[payStatus] || PAY_EDGE.nocontact
+  const edgeColor = PHASE_COLORS[String(site.Phase)] || '#9CA3AF'
   const isFlagged = site.FlaggedForAttention === 'TRUE' || site.ownerFlagged === true
 
   return (
@@ -28,7 +22,7 @@ export default function SiteCard({ site, selected, onClick }) {
         position: 'relative',
       }}
     >
-      {/* Status edge */}
+      {/* Phase edge */}
       <div style={{ height: 3, background: edgeColor }} />
 
       <div style={{ padding: '10px 12px' }}>
@@ -55,16 +49,36 @@ export default function SiteCard({ site, selected, onClick }) {
           {site.ownerName || <span style={{ color: 'var(--ink-3)' }}>No owner data</span>}
         </div>
 
-        <div style={{ display: 'flex', gap: 8, fontSize: 11, color: 'var(--ink-3)' }}>
-          {site.membershipNo && (
-            <span className="mono" style={{ color: 'var(--ink-2)' }}>{site.membershipNo}</span>
-          )}
-          {site.mobile && <span>{site.mobile}</span>}
-          {!site.membershipNo && !site.mobile && <span>Non-member</span>}
+        <div style={{ display: 'flex', gap: 8, fontSize: 11, color: 'var(--ink-3)', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {site.membershipNo && (
+              <span className="mono" style={{ color: 'var(--ink-2)' }}>{site.membershipNo}</span>
+            )}
+            {!site.membershipNo && <span>Non-member</span>}
+          </div>
+          {site.mobile ? (
+            <a
+              href={`tel:${site.mobile}`}
+              onClick={e => e.stopPropagation()}
+              title={site.mobile}
+              style={{
+                width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+                background: 'var(--surface-2)', border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--ink-2)', textDecoration: 'none'
+              }}
+            >
+              <PhoneIcon />
+            </a>
+          ) : null}
         </div>
       </div>
     </div>
   )
+}
+
+function PhoneIcon() {
+  return <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 1h3l1.5 3.5L6 6s1 2 4 4l1.5-1.5L15 10v3a1 1 0 01-1 1C6 14 2 8 2 2a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
 }
 
 function PayBadge({ status }) {
