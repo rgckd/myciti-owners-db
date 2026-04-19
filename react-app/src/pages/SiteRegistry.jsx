@@ -6,7 +6,6 @@ import SiteCard from '../components/SiteCard.jsx'
 import SitePanel from '../components/SitePanel.jsx'
 import PaymentModal from '../components/PaymentModal.jsx'
 
-const STATUSES = ['All', 'Paid', 'Partial', 'Unpaid', 'No contact', 'Disputed']
 const SORT_FIELDS = [
   { value: 'SiteNo', label: 'Site No' },
   { value: 'Phase', label: 'Phase' },
@@ -14,13 +13,17 @@ const SORT_FIELDS = [
   { value: 'Status', label: 'Status' },
 ]
 
+// Module-level cache — survives navigation, avoids reload on back-nav
+let _sitesCache = []
+let _statsCache = null
+
 export default function SiteRegistry() {
   const { user } = useAuth()
   const role = user?.role || 'View'
 
-  const [sites, setSites] = useState([])
-  const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [sites, setSites] = useState(_sitesCache)
+  const [stats, setStats] = useState(_statsCache)
+  const [loading, setLoading] = useState(_sitesCache.length === 0)
   const [selectedSiteId, setSelectedSiteId] = useState(null)
   const [showPayment, setShowPayment] = useState(false)
 
@@ -36,9 +39,11 @@ export default function SiteRegistry() {
   const [sorts, setSorts] = useState([{ field: 'SiteNo', dir: 'asc' }])
 
   const load = useCallback(async () => {
-    setLoading(true)
+    if (_sitesCache.length === 0) setLoading(true)
     try {
       const [sitesData, statsData] = await Promise.all([getSites(), getStats()])
+      _sitesCache = sitesData
+      _statsCache = statsData
       setSites(sitesData)
       setStats(statsData)
     } catch (e) {
