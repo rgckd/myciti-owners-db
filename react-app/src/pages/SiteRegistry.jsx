@@ -30,6 +30,7 @@ export default function SiteRegistry() {
   const [statusFilter, setStatusFilter] = useState('All')
   const [flagFilter, setFlagFilter] = useState(false)
   const [ownerFlagFilter, setOwnerFlagFilter] = useState(false)
+  const [membersOnly, setMembersOnly] = useState(false)
 
   // Sort (up to 3 levels)
   const [sorts, setSorts] = useState([{ field: 'SiteNo', dir: 'asc' }])
@@ -52,6 +53,7 @@ export default function SiteRegistry() {
   const filtered = useMemo(() => {
     let list = [...sites]
     if (phase !== 'All') list = list.filter(s => String(s.Phase) === phase)
+    if (membersOnly) list = list.filter(s => !!s.membershipNo)
     if (flagFilter) list = list.filter(s => s.FlaggedForAttention === 'TRUE')
     if (ownerFlagFilter) list = list.filter(s => s.ownerFlagged === true)
     if (search) {
@@ -79,7 +81,7 @@ export default function SiteRegistry() {
       return 0
     })
     return list
-  }, [sites, phase, search, flagFilter, sorts])
+  }, [sites, phase, search, membersOnly, flagFilter, ownerFlagFilter, sorts])
 
   function addSort() {
     if (sorts.length >= 3) return
@@ -164,6 +166,15 @@ export default function SiteRegistry() {
               {p === 'All' ? 'All phases' : `Phase ${p}`}
             </button>
           ))}
+          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
+          {/* Members filter */}
+          <button
+            className={`btn btn-sm ${membersOnly ? '' : 'btn-ghost'}`}
+            style={membersOnly ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
+            onClick={() => setMembersOnly(f => !f)}
+          >
+            Members
+          </button>
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
           {/* Flag filters */}
           <button

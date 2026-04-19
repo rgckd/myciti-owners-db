@@ -25,7 +25,6 @@ export function AuthProvider({ children }) {
       const jwtPayload = JSON.parse(atob(idToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))
       const payload = encodeURIComponent(JSON.stringify({ action: 'whoami', token: idToken }))
       const res = await fetch(`${APPS_SCRIPT_URL}?payload=${payload}`, { redirect: 'follow' })
-      })
       const data = await res.json()
       if (data.error) { setError(data.error); setToken(''); return }
       setUser({ email: data.email || jwtPayload.email, name: jwtPayload.name || data.displayName,

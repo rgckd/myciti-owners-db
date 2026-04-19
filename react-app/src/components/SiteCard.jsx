@@ -9,7 +9,8 @@ const EDGE_COLORS = {
 }
 
 export default function SiteCard({ site, selected, onClick }) {
-  const payStatus = site.payStatus || 'nocontact'
+  const hasContact = !!(site.mobile)
+  const payStatus = site.payStatus || (hasContact ? 'unpaid' : 'nocontact')
   const edgeColor = EDGE_COLORS[payStatus] || EDGE_COLORS.nocontact
   const isSiteFlagged  = site.FlaggedForAttention === 'TRUE'
   const isOwnerFlagged = site.ownerFlagged === true
