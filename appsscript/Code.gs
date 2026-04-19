@@ -32,16 +32,34 @@ const CONFIG = {
 // ─── MAIN HANDLERS ───────────────────────────────────────────────────────────
 
 function doGet(e) {
-  return handleRequest(e, 'GET');
+  try {
+    // All requests come as GET with payload as a query param
+    const raw = e.parameter && e.parameter.payload
+    if (!raw) return jsonResponse({ error: 'No payload provided' }, 400)
+    const params = JSON.parse(decodeURIComponent(raw))
+    return handleRequest(e, 'GET', params)
+  } catch(err) {
+    return jsonResponse({ error: err.message }, 500)
+  }
 }
 
 function doPost(e) {
-  return handleRequest(e, 'POST');
+  // Keep doPost for completeness but redirect everything through doGet pattern
+  try {
+    let params = {}
+    if (e.postData && e.postData.contents) {
+      params = JSON.parse(e.postData.contents)
+    } else if (e.parameter && e.parameter.payload) {
+      params = JSON.parse(decodeURIComponent(e.parameter.payload))
+    }
+    return handleRequest(e, 'POST', params)
+  } catch(err) {
+    return jsonResponse({ error: err.message }, 500)
+  }
 }
 
-function handleRequest(e, method) {
+function handleRequest(e, method, params) {
   try {
-    const params = method === 'GET' ? e.parameter : JSON.parse(e.postData.contents);
     const action = params.action;
 
     // Public routes — no auth required

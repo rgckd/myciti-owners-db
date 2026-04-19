@@ -22,16 +22,14 @@ export function AuthProvider({ children }) {
     try {
       const idToken = response.credential
       setToken(idToken)
-      const payload = JSON.parse(atob(idToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))
-      const res = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST', redirect: 'follow',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ action: 'whoami', token: idToken }),
+      const jwtPayload = JSON.parse(atob(idToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))
+      const payload = encodeURIComponent(JSON.stringify({ action: 'whoami', token: idToken }))
+      const res = await fetch(`${APPS_SCRIPT_URL}?payload=${payload}`, { redirect: 'follow' })
       })
       const data = await res.json()
       if (data.error) { setError(data.error); setToken(''); return }
-      setUser({ email: data.email || payload.email, name: payload.name || data.displayName,
-                picture: payload.picture || '', role: data.role, displayName: data.displayName || payload.name })
+      setUser({ email: data.email || jwtPayload.email, name: jwtPayload.name || data.displayName,
+                picture: jwtPayload.picture || '', role: data.role, displayName: data.displayName || jwtPayload.name })
     } catch (e) { setError(e.message || 'Sign-in failed'); setToken('')
     } finally { setLoading(false) }
   }, [])

@@ -6,16 +6,12 @@ let _idToken = ''
 export function setToken(token) { _idToken = token }
 export function getToken() { return _idToken }
 
-async function call(action, params = {}, method = 'POST') {
+async function call(action, params = {}) {
   if (!BASE_URL) throw new Error('VITE_APPS_SCRIPT_URL not configured')
-  const body = JSON.stringify({ action, token: _idToken, ...params })
-  const res = await fetch(BASE_URL, {
-    method,
-    // text/plain avoids CORS preflight — Apps Script does not handle OPTIONS requests
-    headers: { 'Content-Type': 'text/plain' },
-    body,
-    redirect: 'follow',
-  })
+  // Use GET with payload as a query param — avoids POST redirect body-loss with Apps Script
+  const payload = JSON.stringify({ action, token: _idToken, ...params })
+  const url = `${BASE_URL}?payload=${encodeURIComponent(payload)}`
+  const res = await fetch(url, { redirect: 'follow' })
   const text = await res.text()
   let data
   try { data = JSON.parse(text) } catch { throw new Error('Invalid response from server') }
