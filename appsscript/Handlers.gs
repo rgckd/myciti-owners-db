@@ -382,6 +382,27 @@
   function getCallLog(params) {
     let logs = sheetToObjects(CONFIG.TABS.CALL_LOG);
     if (params.siteId) logs = logs.filter(l => l.SiteID === params.siteId);
+
+    const sites   = sheetToObjects(CONFIG.TABS.SITES);
+    const owners  = sheetToObjects(CONFIG.TABS.OWNERS);
+    const people  = sheetToObjects(CONFIG.TABS.PEOPLE);
+    const siteMap   = Object.fromEntries(sites.map(s => [s.SiteID, s]));
+    const peopleMap = Object.fromEntries(people.map(p => [p.PersonID, p]));
+
+    logs = logs.map(l => {
+      const site = siteMap[l.SiteID];
+      const currentOwner = owners.find(o =>
+        o.SiteID === l.SiteID && (o.IsCurrent === 'TRUE' || o.IsCurrent === true)
+      );
+      const person = currentOwner ? peopleMap[currentOwner.PersonID] : null;
+      return {
+        ...l,
+        SiteNo:    site   ? site.SiteNo     : null,
+        Phase:     site   ? site.Phase      : null,
+        OwnerName: person ? person.FullName : null,
+      };
+    });
+
     logs.sort((a, b) => (b.LogDate > a.LogDate ? 1 : -1));
     return logs;
   }
