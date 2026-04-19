@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MyCiti Owners Association</title>
+  <script>
+    // GitHub Pages SPA redirect
+    // Store the path in sessionStorage and redirect to root
+    var path = window.location.pathname;
+    var search = window.location.search;
+    var hash = window.location.hash;
+    if (path !== '/') {
+      sessionStorage.setItem('spa_redirect', path + search + hash);
+      window.location.replace('/');
+    }
+  </script>
+</head>
+<body></body>
+</html>
