@@ -100,16 +100,25 @@ export default function PaymentsView() {
         ) : filtered.length === 0 ? (
           <div className="empty-state"><p>No payments found</p></div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: 110 }} />
+              <col style={{ width: 200 }} />
+              <col />
+              <col style={{ width: 90 }} />
+              <col style={{ width: 100 }} />
+              <col style={{ width: 140 }} />
+              <col style={{ width: 110 }} />
+            </colgroup>
             <thead>
               <tr style={{
                 position: 'sticky', top: 0,
                 background: 'var(--surface-2)', borderBottom: '1px solid var(--border)'
               }}>
-                {['Date','Site','Head','Amount','Mode','Recorded'].map(h => (
+                {['Date','Site','Head','Amount','Mode','Bank ref / UTR','Recorded'].map(h => (
                   <th key={h} style={{
                     padding: '10px 8px', textAlign: 'left', fontWeight: 500,
-                    color: 'var(--ink-2)', fontSize: 11, whiteSpace: 'nowrap'
+                    color: 'var(--ink-2)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden'
                   }}>{h}</th>
                 ))}
               </tr>
@@ -129,16 +138,16 @@ export default function PaymentsView() {
                   <td style={{ padding: '10px 8px', color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>
                     {formatDate(p.PaymentDate)}
                   </td>
-                  <td style={{ padding: '10px 8px' }}>
-                    <div style={{ fontWeight: 500 }}>
+                  <td style={{ padding: '10px 8px', overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {p.SiteNo ? `Site ${p.SiteNo}` : p.SiteID}
                       {p.Phase ? <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}> · Ph {p.Phase}</span> : null}
                     </div>
                     {p.OwnerName && (
-                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 1 }}>{p.OwnerName}</div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.OwnerName}</div>
                     )}
                   </td>
-                  <td style={{ padding: '10px 8px', color: 'var(--ink-2)' }}>
+                  <td style={{ padding: '10px 8px', color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {headName(p.HeadID)}
                   </td>
                   <td style={{ padding: '10px 8px', fontWeight: 600, color: 'var(--paid)', whiteSpace: 'nowrap' }}>
@@ -146,6 +155,9 @@ export default function PaymentsView() {
                   </td>
                   <td style={{ padding: '10px 8px', color: 'var(--ink-2)' }}>
                     {p.Mode || '—'}
+                  </td>
+                  <td style={{ padding: '10px 8px', color: 'var(--ink-2)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {p.BankRef || '—'}
                   </td>
                   <td style={{ padding: '10px 8px', color: 'var(--ink-3)', fontSize: 11 }}>
                     <div>{formatDate(p.RecordedAt)}</div>
@@ -202,9 +214,14 @@ function DateField({ value, onChange }) {
 function toDateInput(val) {
   if (!val) return ''
   const s = String(val)
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
   const d = new Date(val)
-  return isNaN(d) ? '' : d.toISOString().slice(0, 10)
+  if (isNaN(d)) return ''
+  // Use local date components — avoids UTC midnight shifting date one day back in IST
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function EditPaymentModal({ payment, heads, onClose, onSaved }) {
@@ -286,7 +303,7 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
               <input className="input" type="number" value={amount} onChange={e => setAmount(e.target.value)} />
             </div>
             <div>
-              <label className="label">Date</label>
+              <label className="label">Transaction date</label>
               <DateField value={date} onChange={setDate} />
             </div>
           </div>

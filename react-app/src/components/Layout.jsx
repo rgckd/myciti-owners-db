@@ -22,8 +22,8 @@ export default function Layout({ children }) {
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <div className={styles.logo}>
-          <div className={styles.logoMark}>MyCiti OA</div>
-          <div className={styles.logoSub}>Bidadi · Ramanagara</div>
+          <div className={styles.logoMark}>MyCiti Database</div>
+          <div className={styles.logoSub}>MCOA, Bidadi</div>
         </div>
 
         <nav className={styles.nav}>

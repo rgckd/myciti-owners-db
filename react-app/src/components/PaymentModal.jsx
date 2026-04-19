@@ -234,7 +234,7 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
               </div>
             </div>
             <div>
-              <label className="label">Date *</label>
+              <label className="label">Transaction date *</label>
               <div style={{ position: 'relative' }}>
                 <div className="input" style={{ cursor: 'pointer', color: date ? 'inherit' : 'var(--ink-3)' }}>
                   {date ? date.split('-').reverse().join('/') : 'DD/MM/YYYY'}
