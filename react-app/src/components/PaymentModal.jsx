@@ -1,8 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
-import { getPaymentHeads, createPayment } from '../utils/api.js'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { getSites, getPaymentHeads, createPayment, uploadFileToDrive } from '../utils/api.js'
 import { PAYMENT_MODES, formatCurrency } from '../utils/constants.js'
-
-// Reuse the sites already loaded by SiteRegistry — import the cache reference
 import { getSitesCache } from '../pages/SiteRegistry.jsx'
 
 export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [], onClose, onSaved }) {
@@ -15,14 +13,23 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [receiptNo, setReceiptNo] = useState('')
   const [bankRef, setBankRef] = useState('')
+  const [proofUrl, setProofUrl] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const fileInputRef = useRef(null)
+  const dateInputRef = useRef(null)
 
   // Site picker state (only used when not pre-filled)
   const [sitePhase, setSitePhase] = useState('All')
   const [siteSearch, setSiteSearch] = useState('')
+  const [allSites, setAllSites] = useState(() => getSitesCache())
 
-  const allSites = getSitesCache()
+  useEffect(() => {
+    if (allSites.length === 0 && !prefillSiteId) {
+      getSites().then(setAllSites).catch(console.error)
+    }
+  }, [])
 
   const filteredSites = useMemo(() => {
     let list = allSites
@@ -50,6 +57,18 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
   const selectedHead = heads.find(h => h.HeadID === selectedHeadId)
   const selectedSite = allSites.find(s => s.SiteID === selectedSiteId)
 
+  async function handleFileSelect(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    e.target.value = ''
+    setUploading(true); setError('')
+    try {
+      const url = await uploadFileToDrive(file, selectedSiteId || 'new')
+      setProofUrl(url)
+    } catch (err) { setError(err.message) }
+    finally { setUploading(false) }
+  }
+
   async function handleSave() {
     if (!selectedSiteId || !selectedHeadId || !amount || !mode || !date) {
       setError('Please fill in all required fields')
@@ -63,7 +82,7 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
         headId: selectedHeadId,
         amount: Number(amount),
         mode, paymentDate: date,
-        receiptNo, bankRef
+        receiptNo, bankRef, proofUrl
       })
       onSaved()
     } catch (e) {
@@ -216,7 +235,18 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
             </div>
             <div>
               <label className="label">Date *</label>
-              <input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} />
+              <div style={{ position: 'relative' }}>
+                <div className="input" style={{ cursor: 'pointer', color: date ? 'inherit' : 'var(--ink-3)' }}>
+                  {date ? date.split('-').reverse().join('/') : 'DD/MM/YYYY'}
+                </div>
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                  style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%' }}
+                />
+              </div>
             </div>
           </div>
 
@@ -230,6 +260,41 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
               <label className="label">Bank ref / UTR</label>
               <input className="input" placeholder="Optional" value={bankRef} onChange={e => setBankRef(e.target.value)} />
             </div>
+          </div>
+
+          {/* Receipt upload */}
+          <div>
+            <label className="label">Receipt / proof</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+              />
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={uploading || !selectedSiteId}
+                onClick={() => fileInputRef.current?.click()}
+                style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
+                {uploading ? 'Uploading…' : '↑ Upload receipt'}
+              </button>
+              <input
+                className="input"
+                placeholder="Or paste Drive link"
+                value={proofUrl}
+                onChange={e => setProofUrl(e.target.value)}
+                style={{ flex: 1 }}
+              />
+            </div>
+            {proofUrl && (
+              <a href={proofUrl} target="_blank" rel="noreferrer"
+                style={{ fontSize: 11, color: 'var(--tc)', marginTop: 4, display: 'inline-block' }}>
+                View uploaded receipt ↗
+              </a>
+            )}
           </div>
 
           {error && (

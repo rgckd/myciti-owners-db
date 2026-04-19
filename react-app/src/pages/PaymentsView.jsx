@@ -180,6 +180,25 @@ export default function PaymentsView() {
   )
 }
 
+function DateField({ value, onChange }) {
+  const ref = useRef(null)
+  const display = value ? value.split('-').reverse().join('/') : ''
+  return (
+    <div style={{ position: 'relative' }}>
+      <div className="input" style={{ cursor: 'pointer', color: display ? 'inherit' : 'var(--ink-3)' }}>
+        {display || 'DD/MM/YYYY'}
+      </div>
+      <input
+        ref={ref}
+        type="date"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%' }}
+      />
+    </div>
+  )
+}
+
 function toDateInput(val) {
   if (!val) return ''
   const s = String(val)
@@ -268,7 +287,7 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
             </div>
             <div>
               <label className="label">Date</label>
-              <input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} />
+              <DateField value={date} onChange={setDate} />
             </div>
           </div>
 
