@@ -194,7 +194,7 @@ export default function SiteRegistry() {
           ))}
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
           {/* Payment status */}
-          {[['paid','Paid'],['partial','Partial'],['unpaid','Unpaid']].map(([val, label]) => (
+          {[['paid','Paid'],['partial','Default'],['unpaid','Unpaid']].map(([val, label]) => (
             <button key={val}
               className={`btn btn-sm ${payFilter === val ? '' : 'btn-ghost'}`}
               style={payFilter === val ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}

@@ -1,23 +1,25 @@
 import { initials } from '../utils/constants.js'
 
-const PHASE_COLORS = {
-  '1': '#2B6CB0',
-  '2': '#276749',
+const PAY_EDGE = {
+  paid:      '#3B6D11',
+  partial:   '#854F0B',
+  unpaid:    '#C05621',
+  disputed:  '#A32D2D',
+  nocontact: '#9CA3AF',
 }
 
 export default function SiteCard({ site, selected, onClick }) {
   const hasContact = !!(site.mobile)
   const payStatus = site.payStatus || (hasContact ? 'unpaid' : 'nocontact')
-  const edgeColor = PHASE_COLORS[String(site.Phase)] || 'var(--nocontact)'
-  const isSiteFlagged  = site.FlaggedForAttention === 'TRUE'
-  const isOwnerFlagged = site.ownerFlagged === true
+  const edgeColor = PAY_EDGE[payStatus] || PAY_EDGE.nocontact
+  const isFlagged = site.FlaggedForAttention === 'TRUE' || site.ownerFlagged === true
 
   return (
     <div
       onClick={onClick}
       style={{
-        background: 'var(--surface)',
-        border: `1px solid ${selected ? 'var(--tc)' : 'var(--border)'}`,
+        background: isFlagged ? '#FFFBEB' : 'var(--surface)',
+        border: `1px solid ${selected ? 'var(--tc)' : isFlagged ? '#F6D860' : 'var(--border)'}`,
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
         cursor: 'pointer',
@@ -40,8 +42,7 @@ export default function SiteCard({ site, selected, onClick }) {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {isSiteFlagged  && <span title="Site flagged" style={{ fontSize: 12 }}>🚩</span>}
-            {isOwnerFlagged && <span title="Owner flagged" style={{ fontSize: 12 }}>⚑</span>}
+            {isFlagged && <span title="Flagged" style={{ fontSize: 12 }}>🚩</span>}
             <PayBadge status={payStatus} />
           </div>
         </div>
@@ -69,7 +70,7 @@ export default function SiteCard({ site, selected, onClick }) {
 function PayBadge({ status }) {
   const map = {
     paid:      { label: 'Paid',      cls: 'badge-paid' },
-    partial:   { label: 'Partial',   cls: 'badge-partial' },
+    partial:   { label: 'Default',   cls: 'badge-partial' },
     unpaid:    { label: 'Unpaid',    cls: 'badge-unpaid' },
     disputed:  { label: 'Disputed',  cls: 'badge-disputed' },
     nocontact: { label: 'No contact',cls: 'badge-nocontact' },
