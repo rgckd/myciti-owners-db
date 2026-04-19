@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
-import { getSites, getPaymentHeads, createPayment } from '../utils/api.js'
+import { useState, useEffect, useMemo } from 'react'
+import { getPaymentHeads, createPayment } from '../utils/api.js'
 import { PAYMENT_MODES, formatCurrency } from '../utils/constants.js'
 
+// Reuse the sites already loaded by SiteRegistry — import the cache reference
+import { getSitesCache } from '../pages/SiteRegistry.jsx'
+
 export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [], onClose, onSaved }) {
-  const [sites, setSites] = useState([])
   const [heads, setHeads] = useState([])
   const [selectedSiteId, setSelectedSiteId] = useState(prefillSiteId || '')
   const [selectedOwnerId, setSelectedOwnerId] = useState(owners[0]?.OwnerID || '')
@@ -16,19 +18,37 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Site picker state (only used when not pre-filled)
+  const [sitePhase, setSitePhase] = useState('All')
+  const [siteSearch, setSiteSearch] = useState('')
+
+  const allSites = getSitesCache()
+
+  const filteredSites = useMemo(() => {
+    let list = allSites
+    if (sitePhase !== 'All') list = list.filter(s => String(s.Phase) === sitePhase)
+    if (siteSearch.trim()) {
+      const q = siteSearch.toLowerCase()
+      list = list.filter(s =>
+        String(s.SiteNo).toLowerCase().includes(q) ||
+        (s.ownerName && s.ownerName.toLowerCase().includes(q)) ||
+        (s.membershipNo && s.membershipNo.toLowerCase().includes(q)) ||
+        (s.mobile && s.mobile.includes(q))
+      )
+    }
+    return list.slice(0, 50)
+  }, [allSites, sitePhase, siteSearch])
+
   useEffect(() => {
-    Promise.all([getSites(), getPaymentHeads()]).then(([s, h]) => {
-      setSites(s)
-      const active = h.filter(head => head.IsActive === 'TRUE')
+    getPaymentHeads().then(h => {
+      const active = h.filter(head => head.IsActive === 'TRUE' || head.IsActive === true)
       setHeads(active)
       if (active.length > 0) setSelectedHeadId(active[0].HeadID)
     })
   }, [])
 
-  const siteOwners = owners.length > 0 ? owners :
-    (selectedSiteId ? [] : []) // in full modal, owners come from site selection
-
   const selectedHead = heads.find(h => h.HeadID === selectedHeadId)
+  const selectedSite = allSites.find(s => s.SiteID === selectedSiteId)
 
   async function handleSave() {
     if (!selectedSiteId || !selectedHeadId || !amount || !mode || !date) {
@@ -59,7 +79,7 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
     }}>
       <div style={{
         background: 'var(--surface)', borderRadius: 'var(--radius-xl)',
-        width: '100%', maxWidth: 420, overflow: 'hidden',
+        width: '100%', maxWidth: 440, overflow: 'hidden',
         border: '1px solid var(--border)'
       }}>
         {/* Header */}
@@ -71,48 +91,90 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
 
-        {/* Site banner */}
-        {siteNo && (
-          <div style={{
-            margin: '14px 18px 0', padding: '10px 14px',
-            background: 'var(--tc-light)', borderRadius: 'var(--radius-md)'
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--tc)' }}>Site {siteNo}</div>
-            {owners[0]?.person?.FullName && (
-              <div style={{ fontSize: 12, color: 'var(--tc-dark)', marginTop: 2 }}>
-                {owners[0].person.FullName} · {owners[0].MembershipNo || 'Non-member'}
+        <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Site — pre-filled banner OR picker */}
+          {siteNo ? (
+            <div style={{
+              padding: '10px 14px',
+              background: 'var(--tc-light)', borderRadius: 'var(--radius-md)'
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--tc)' }}>Site {siteNo}</div>
+              {owners[0]?.person?.FullName && (
+                <div style={{ fontSize: 12, color: 'var(--tc-dark)', marginTop: 2 }}>
+                  {owners[0].person.FullName} · {owners[0].MembershipNo || 'Non-member'}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <label className="label">Site *</label>
+              {/* Phase filter */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                {['All', '1', '2'].map(p => (
+                  <button
+                    key={p}
+                    className={`btn btn-sm ${sitePhase === p ? '' : 'btn-ghost'}`}
+                    style={sitePhase === p ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
+                    onClick={() => { setSitePhase(p); setSelectedSiteId('') }}
+                  >
+                    {p === 'All' ? 'All phases' : `Phase ${p}`}
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
-        )}
+              {/* Search */}
+              <input
+                className="input"
+                placeholder="Search site no, owner name, MID…"
+                value={siteSearch}
+                onChange={e => { setSiteSearch(e.target.value); setSelectedSiteId('') }}
+                style={{ marginBottom: 6 }}
+              />
+              {/* Site list */}
+              <div style={{
+                border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+                maxHeight: 180, overflowY: 'auto'
+              }}>
+                {filteredSites.length === 0 ? (
+                  <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--ink-3)' }}>No sites found</div>
+                ) : filteredSites.map(s => (
+                  <div
+                    key={s.SiteID}
+                    onClick={() => setSelectedSiteId(s.SiteID)}
+                    style={{
+                      padding: '8px 12px', cursor: 'pointer', fontSize: 13,
+                      borderBottom: '1px solid var(--border)',
+                      background: selectedSiteId === s.SiteID ? 'var(--tc-light)' : 'transparent',
+                      color: selectedSiteId === s.SiteID ? 'var(--tc-dark)' : 'var(--ink)',
+                    }}
+                  >
+                    <span style={{ fontWeight: 500 }}>Site {s.SiteNo}</span>
+                    <span style={{ color: 'var(--ink-3)', marginLeft: 6 }}>Ph {s.Phase}</span>
+                    {s.ownerName && <span style={{ marginLeft: 6 }}> — {s.ownerName}</span>}
+                  </div>
+                ))}
+              </div>
+              {selectedSite && (
+                <div style={{ fontSize: 11, color: 'var(--tc)', marginTop: 4 }}>
+                  ✓ Selected: Site {selectedSite.SiteNo} Phase {selectedSite.Phase}
+                  {selectedSite.ownerName ? ` — ${selectedSite.ownerName}` : ''}
+                </div>
+              )}
+            </div>
+          )}
 
-        {!siteNo && (
-          <div style={{ padding: '14px 18px 0' }}>
-            <label className="label">Site *</label>
-            <select
-              className="input"
-              value={selectedSiteId}
-              onChange={e => setSelectedSiteId(e.target.value)}
-            >
-              <option value="">Select site…</option>
-              {sites.map(s => (
-                <option key={s.SiteID} value={s.SiteID}>
-                  Site {s.SiteNo} — Phase {s.Phase} ({s.ownerName || 'No owner'})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Payment head */}
           <div>
             <label className="label">Payment head *</label>
-            <select className="input" value={selectedHeadId} onChange={e => setSelectedHeadId(e.target.value)}>
-              {heads.map(h => (
-                <option key={h.HeadID} value={h.HeadID}>{h.HeadName}</option>
-              ))}
-            </select>
+            {heads.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>No active payment heads — add one in Admin.</div>
+            ) : (
+              <select className="input" value={selectedHeadId} onChange={e => setSelectedHeadId(e.target.value)}>
+                {heads.map(h => (
+                  <option key={h.HeadID} value={h.HeadID}>{h.HeadName}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Mode */}

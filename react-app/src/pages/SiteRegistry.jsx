@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react'
 import { getSites, getStats } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canEdit, canFlag, formatCurrency } from '../utils/constants.js'
@@ -16,6 +16,7 @@ const SORT_FIELDS = [
 // Module-level cache — survives navigation, avoids reload on back-nav
 let _sitesCache = []
 let _statsCache = null
+export function getSitesCache() { return _sitesCache }
 
 export default function SiteRegistry() {
   const { user } = useAuth()
@@ -37,6 +38,8 @@ export default function SiteRegistry() {
 
   // Sort (up to 3 levels)
   const [sorts, setSorts] = useState([{ field: 'SiteNo', dir: 'asc' }])
+
+  const deferredSearch = useDeferredValue(search)
 
   const load = useCallback(async () => {
     if (_sitesCache.length === 0) setLoading(true)
@@ -61,8 +64,8 @@ export default function SiteRegistry() {
     if (membersOnly) list = list.filter(s => !!s.membershipNo)
     if (flagFilter) list = list.filter(s => s.FlaggedForAttention === 'TRUE')
     if (ownerFlagFilter) list = list.filter(s => s.ownerFlagged === true)
-    if (search) {
-      const q = search.toLowerCase()
+    if (deferredSearch) {
+      const q = deferredSearch.toLowerCase()
       list = list.filter(s =>
         String(s.SiteNo).toLowerCase().includes(q) ||
         (s.ownerName && s.ownerName.toLowerCase().includes(q)) ||
@@ -86,7 +89,7 @@ export default function SiteRegistry() {
       return 0
     })
     return list
-  }, [sites, phase, search, membersOnly, flagFilter, ownerFlagFilter, sorts])
+  }, [sites, phase, deferredSearch, membersOnly, flagFilter, ownerFlagFilter, sorts])
 
   function addSort() {
     if (sorts.length >= 3) return
