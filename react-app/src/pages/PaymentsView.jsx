@@ -94,13 +94,22 @@ export default function PaymentsView() {
       </div>
 
       {/* List */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '0 20px' }}>
         {loading ? (
           <div className="empty-state"><div className="spin" style={{ margin: '0 auto' }} /></div>
         ) : filtered.length === 0 ? (
           <div className="empty-state"><p>No payments found</p></div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', minWidth: 980, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
+            <colgroup>
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '22%' }} />
+              <col style={{ width: '26%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '8%' }} />
+            </colgroup>
             <thead>
               <tr style={{
                 position: 'sticky', top: 0,
@@ -150,7 +159,7 @@ export default function PaymentsView() {
                   <td style={{ padding: '10px 8px', color: 'var(--ink-2)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {p.BankRef || '—'}
                   </td>
-                  <td style={{ padding: '10px 8px', color: 'var(--ink-3)', fontSize: 11 }}>
+                  <td style={{ padding: '10px 8px', color: 'var(--ink-3)', fontSize: 11, whiteSpace: 'nowrap' }}>
                     <div>{formatDate(p.RecordedAt)}</div>
                     <div style={{ marginTop: 1 }}>{p.RecordedBy?.split('@')[0]}</div>
                   </td>
