@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { getPayments, getPaymentHeads, updatePayment } from '../utils/api.js'
+import { getPayments, getPaymentHeads, updatePayment, getUploadFolder } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canEdit, formatCurrency, formatDate } from '../utils/constants.js'
 import PaymentModal from '../components/PaymentModal.jsx'
@@ -186,8 +186,19 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
   const [date, setDate]       = useState(payment.PaymentDate || '')
   const [receiptNo, setReceiptNo] = useState(payment.ReceiptNo || '')
   const [bankRef, setBankRef] = useState(payment.BankRef || '')
+  const [proofUrl, setProofUrl] = useState(payment.ProofURL || '')
+  const [folderLoading, setFolderLoading] = useState(false)
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
+
+  async function openDriveFolder() {
+    setFolderLoading(true)
+    try {
+      const { folderUrl } = await getUploadFolder('Payments', payment.PaymentID)
+      window.open(folderUrl, '_blank')
+    } catch (e) { setError(e.message) }
+    finally { setFolderLoading(false) }
+  }
 
   const headName = heads.find(h => h.HeadID === payment.HeadID)?.HeadName || payment.HeadID
 
@@ -201,6 +212,7 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
         PaymentDate: date,
         ReceiptNo: receiptNo,
         BankRef: bankRef,
+        ProofURL: proofUrl,
       })
       onSaved()
     } catch (e) { setError(e.message) }
@@ -270,6 +282,36 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
               <label className="label">Bank ref / UTR</label>
               <input className="input" value={bankRef} onChange={e => setBankRef(e.target.value)} />
             </div>
+          </div>
+
+          {/* Receipt upload */}
+          <div>
+            <label className="label">Receipt / proof</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={folderLoading}
+                onClick={openDriveFolder}
+                style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
+                {folderLoading ? 'Opening…' : '↑ Upload to Drive'}
+              </button>
+              <input
+                className="input"
+                placeholder="Paste Drive link after uploading"
+                value={proofUrl}
+                onChange={e => setProofUrl(e.target.value)}
+                style={{ flex: 1 }}
+              />
+            </div>
+            {proofUrl && (
+              <a
+                href={proofUrl} target="_blank" rel="noreferrer"
+                style={{ fontSize: 11, color: 'var(--tc)', marginTop: 4, display: 'inline-block' }}
+              >
+                View uploaded receipt ↗
+              </a>
+            )}
           </div>
 
           {error && (
