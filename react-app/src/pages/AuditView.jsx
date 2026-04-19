@@ -10,6 +10,7 @@ export default function AuditView() {
   const [loading, setLoading] = useState(true)
   const [tabFilter, setTabFilter]       = useState('')
   const [actionFilter, setActionFilter] = useState('')
+  const [searchInput, setSearchInput]   = useState('')
   const [search, setSearch]             = useState('')
 
   async function load() {
@@ -45,7 +46,9 @@ export default function AuditView() {
         <h1 style={{ fontSize: 15, fontWeight: 600 }}>Audit log</h1>
         <input className="input" style={{ width: 200 }}
           placeholder="Record ID, user, field…"
-          value={search} onChange={e => setSearch(e.target.value)} />
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && setSearch(searchInput)} />
         <select className="input" style={{ width: 'auto' }}
           value={tabFilter} onChange={e => setTabFilter(e.target.value)}>
           <option value="">All tabs</option>

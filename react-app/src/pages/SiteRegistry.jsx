@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getSites, getStats } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canEdit, canFlag, formatCurrency } from '../utils/constants.js'
@@ -29,6 +29,7 @@ export default function SiteRegistry() {
   const [showPayment, setShowPayment] = useState(false)
 
   // Filters
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [phase, setPhase] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
@@ -39,7 +40,7 @@ export default function SiteRegistry() {
   // Sort (up to 3 levels)
   const [sorts, setSorts] = useState([{ field: 'SiteNo', dir: 'asc' }])
 
-  const deferredSearch = useDeferredValue(search)
+  function commitSearch() { setSearch(searchInput) }
 
   const load = useCallback(async () => {
     if (_sitesCache.length === 0) setLoading(true)
@@ -64,8 +65,8 @@ export default function SiteRegistry() {
     if (membersOnly) list = list.filter(s => !!s.membershipNo)
     if (flagFilter) list = list.filter(s => s.FlaggedForAttention === 'TRUE')
     if (ownerFlagFilter) list = list.filter(s => s.ownerFlagged === true)
-    if (deferredSearch) {
-      const q = deferredSearch.toLowerCase()
+    if (search) {
+      const q = search.toLowerCase()
       list = list.filter(s =>
         String(s.SiteNo).toLowerCase().includes(q) ||
         (s.ownerName && s.ownerName.toLowerCase().includes(q)) ||
@@ -89,7 +90,7 @@ export default function SiteRegistry() {
       return 0
     })
     return list
-  }, [sites, phase, deferredSearch, membersOnly, flagFilter, ownerFlagFilter, sorts])
+  }, [sites, phase, search, membersOnly, flagFilter, ownerFlagFilter, sorts])
 
   function addSort() {
     if (sorts.length >= 3) return
@@ -121,14 +122,24 @@ export default function SiteRegistry() {
             borderRadius: 'var(--radius-md)', padding: '6px 12px',
             width: 240
           }}>
-            <SearchIcon />
+            <button
+              onClick={commitSearch}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
+            ><SearchIcon /></button>
             <input
               className="input"
               style={{ border: 'none', background: 'transparent', padding: 0, flex: 1 }}
               placeholder="Site, owner, MID, mobile…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && commitSearch()}
             />
+            {searchInput && (
+              <button
+                onClick={() => { setSearchInput(''); setSearch('') }}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, color: 'var(--ink-3)' }}
+              >✕</button>
+            )}
           </div>
           {canEdit(role, 'payments') && (
             <button className="btn btn-primary" onClick={() => setShowPayment(true)}>

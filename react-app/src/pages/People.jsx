@@ -9,6 +9,7 @@ export default function People() {
   const role = user?.role || 'View'
   const [allPeople, setAllPeople] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)   // { person, ownerships }
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -51,9 +52,29 @@ export default function People() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 12, alignItems: 'center' }}>
           <h1 style={{ fontSize: 15, fontWeight: 600, flex: 1 }}>Owners</h1>
-          <input className="input" style={{ width: 240 }}
-            placeholder="Search name, mobile, email…"
-            value={search} onChange={e => setSearch(e.target.value)} />
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: 'var(--surface-2)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', padding: '6px 10px', width: 240
+          }}>
+            <button
+              onClick={() => setSearch(searchInput)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
+            ><SearchIcon /></button>
+            <input className="input"
+              style={{ border: 'none', background: 'transparent', padding: 0, flex: 1 }}
+              placeholder="Name, mobile, email…"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && setSearch(searchInput)}
+            />
+            {searchInput && (
+              <button
+                onClick={() => { setSearchInput(''); setSearch('') }}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, color: 'var(--ink-3)' }}
+              >✕</button>
+            )}
+          </div>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px' }}>
@@ -251,4 +272,8 @@ export default function People() {
       )}
     </div>
   )
+}
+
+function SearchIcon() {
+  return <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="var(--ink-3)" strokeWidth="1.4"/><path d="M11 11l3 3" stroke="var(--ink-3)" strokeWidth="1.4" strokeLinecap="round"/></svg>
 }
