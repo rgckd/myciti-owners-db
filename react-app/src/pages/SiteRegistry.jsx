@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getSites, getStats } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { canEdit, canFlag, formatCurrency } from '../utils/constants.js'
+import { canFlag } from '../utils/constants.js'
 import SiteCard from '../components/SiteCard.jsx'
 import SitePanel from '../components/SitePanel.jsx'
-import PaymentModal from '../components/PaymentModal.jsx'
 
 const SORT_FIELDS = [
   { value: 'SiteNo', label: 'Site No' },
@@ -26,7 +25,6 @@ export default function SiteRegistry() {
   const [stats, setStats] = useState(_statsCache)
   const [loading, setLoading] = useState(_sitesCache.length === 0)
   const [selectedSiteId, setSelectedSiteId] = useState(null)
-  const [showPayment, setShowPayment] = useState(false)
 
   // Filters
   const [searchInput, setSearchInput] = useState('')
@@ -142,11 +140,6 @@ export default function SiteRegistry() {
               >✕</button>
             )}
           </div>
-          {canEdit(role, 'payments') && (
-            <button className="btn btn-primary" onClick={() => setShowPayment(true)}>
-              + Record payment
-            </button>
-          )}
         </div>
 
         {/* Stats bar */}
@@ -287,14 +280,6 @@ export default function SiteRegistry() {
         />
       )}
 
-      {/* Payment modal */}
-      {showPayment && (
-        <PaymentModal
-          onClose={() => setShowPayment(false)}
-          onSaved={() => { setShowPayment(false); load() }}
-          role={role}
-        />
-      )}
     </div>
   )
 }

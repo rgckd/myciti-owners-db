@@ -4,10 +4,12 @@ import { initials } from '../utils/constants.js'
 import styles from './Layout.module.css'
 
 const NAV = [
-  { to: '/',       label: 'Site registry', icon: GridIcon,   always: true },
-  { to: '/people', label: 'Owners',        icon: PersonIcon, always: true },
-  { to: '/audit',  label: 'Audit log',     icon: LogIcon,    roles: ['Admin'] },
-  { to: '/admin',  label: 'Admin',         icon: GearIcon,   roles: ['Admin'] },
+  { to: '/',         label: 'Site registry', icon: GridIcon,     always: true },
+  { to: '/people',   label: 'Owners',        icon: PersonIcon,   always: true },
+  { to: '/payments', label: 'Payments',      icon: PayIcon,      always: true },
+  { to: '/calllogs', label: 'Call log',      icon: PhoneLogIcon, always: true },
+  { to: '/audit',    label: 'Audit log',     icon: LogIcon,      roles: ['Admin'] },
+  { to: '/admin',    label: 'Admin',         icon: GearIcon,     roles: ['Admin'] },
 ]
 
 export default function Layout({ children }) {
@@ -74,6 +76,12 @@ function AlertIcon({ size = 16 }) {
 }
 function ClockIcon({ size = 16 }) {
   return <svg width={size} height={size} viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3"/><path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+}
+function PayIcon({ size = 16 }) {
+  return <svg width={size} height={size} viewBox="0 0 16 16" fill="none"><rect x="1" y="4" width="14" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1 7h14" stroke="currentColor" strokeWidth="1.3"/><circle cx="4.5" cy="10" r="1" fill="currentColor"/></svg>
+}
+function PhoneLogIcon({ size = 16 }) {
+  return <svg width={size} height={size} viewBox="0 0 16 16" fill="none"><path d="M3 1h3l1.5 3.5L6 6s1 2 4 4l1.5-1.5L15 10v3a1 1 0 01-1 1C6 14 2 8 2 2a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
 }
 function LogIcon({ size = 16 }) {
   return <svg width={size} height={size} viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M5 6h6M5 9h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
