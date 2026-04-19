@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getPeople, getPerson, updatePerson } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canEdit, initials, formatDate } from '../utils/constants.js'
@@ -7,7 +7,7 @@ import IDCard from '../components/IDCard.jsx'
 export default function People() {
   const { user } = useAuth()
   const role = user?.role || 'View'
-  const [people, setPeople] = useState([])
+  const [allPeople, setAllPeople] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)   // { person, ownerships }
@@ -16,12 +16,23 @@ export default function People() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { setPeople(await getPeople({ q: search })) }
+    try { setAllPeople(await getPeople({})) }
     catch (e) { console.error(e) }
     finally { setLoading(false) }
-  }, [search])
+  }, [])
 
   useEffect(() => { load() }, [load])
+
+  const people = useMemo(() => {
+    if (!search.trim()) return allPeople
+    const q = search.toLowerCase()
+    return allPeople.filter(p =>
+      (p.FullName && p.FullName.toLowerCase().includes(q)) ||
+      (p.Mobile1 && p.Mobile1.includes(q)) ||
+      (p.Mobile2 && p.Mobile2.includes(q)) ||
+      (p.Email && p.Email.toLowerCase().includes(q))
+    )
+  }, [allPeople, search])
 
   async function selectPerson(personId) {
     setLoadingDetail(true)
