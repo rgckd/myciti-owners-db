@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updatePerson, updateOwner, createCallLog, markFollowUpDone } from '../utils/api.js'
-import { canEdit, canFlag, formatCurrency, formatDate, initials } from '../utils/constants.js'
+import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
 
@@ -370,13 +370,6 @@ function OwnerRow({ owner, role, onRefresh }) {
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-
-  function toDateInput(val) {
-    if (!val) return ''
-    const s = String(val)
-    // ISO datetime → take date part only
-    return s.length > 10 ? s.slice(0, 10) : s
-  }
 
   function startEdit() {
     setSaveError('')

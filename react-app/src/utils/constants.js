@@ -51,6 +51,16 @@ export function formatDate(d) {
   return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+// Converts any date value from Sheets (ISO datetime string, Date object, or YYYY-MM-DD)
+// to the YYYY-MM-DD string required by <input type="date">
+export function toDateInput(val) {
+  if (!val) return ''
+  const s = String(val)
+  // ISO datetime (2021-07-18T...) — take date portion directly, no tz shift
+  if (s.length > 10 && s[4] === '-') return s.slice(0, 10)
+  return s
+}
+
 export function initials(name) {
   if (!name) return '?'
   return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)

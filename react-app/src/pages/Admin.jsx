@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getUsers, addUser, updateUser, removeUser, checkSheetAccess,
          getPaymentHeads, createPaymentHead, updatePaymentHead } from '../utils/api.js'
-import { formatDate } from '../utils/constants.js'
+import { formatDate, toDateInput } from '../utils/constants.js'
 
 const ROLES = ['Edit', 'Payments', 'Caller', 'View']
 
@@ -219,7 +219,7 @@ function PaymentHeadsTab() {
       headName: h.HeadName,
       amountType: h.AmountType,
       expectedAmount: h.AmountType === 'Flat' ? h.ExpectedAmountFlat : h.ExpectedAmountPerSqft,
-      dueDate: h.DueDate || '',
+      dueDate: toDateInput(h.DueDate),
       notes: h.Notes || '',
       isActive: h.IsActive
     })
