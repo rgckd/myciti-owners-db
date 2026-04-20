@@ -4,7 +4,7 @@ import { initials } from '../utils/constants.js'
 import styles from './Layout.module.css'
 
 const NAV = [
-  { to: '/',         label: 'Site registry', icon: GridIcon,     always: true },
+  { to: '/',         label: 'Site Registry', icon: GridIcon,     always: true },
   { to: '/payments', label: 'Payments',      icon: PayIcon,      always: true },
   { to: '/calllogs', label: 'Call log',      icon: PhoneLogIcon, always: true },
   { to: '/audit',    label: 'Audit log',     icon: LogIcon,      roles: ['Admin'] },
