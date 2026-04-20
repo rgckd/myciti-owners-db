@@ -22,10 +22,15 @@ export default function PaymentsView() {
     try {
       const [pays, hs] = await Promise.all([getPayments({}), getPaymentHeads()])
       pays.sort((a, b) => {
-        if (!a.PaymentDate && !b.PaymentDate) return 0
-        if (!a.PaymentDate) return 1
-        if (!b.PaymentDate) return -1
-        return new Date(b.PaymentDate) - new Date(a.PaymentDate)
+        const recordedA = a.RecordedAt ? new Date(a.RecordedAt).getTime() : 0
+        const recordedB = b.RecordedAt ? new Date(b.RecordedAt).getTime() : 0
+        if (recordedA !== recordedB) return recordedB - recordedA
+
+        const paymentA = a.PaymentDate ? new Date(a.PaymentDate).getTime() : 0
+        const paymentB = b.PaymentDate ? new Date(b.PaymentDate).getTime() : 0
+        if (paymentA !== paymentB) return paymentB - paymentA
+
+        return String(b.PaymentID || '').localeCompare(String(a.PaymentID || ''))
       })
       setPayments(pays)
       setHeads(hs)
