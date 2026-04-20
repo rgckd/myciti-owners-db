@@ -74,6 +74,7 @@ function updateRowFields(tabName, pkCol, pkVal, fieldsObj, caller) {
     const colIdx = headers.indexOf(field);
     if (colIdx < 0) return;
     const oldVal = row[colIdx];
+    if (String(oldVal) === String(newVal)) return;
     sheet.getRange(rowIndex, colIdx + 1).setValue(newVal);
     changes.push({ field, oldVal, newVal });
   });
