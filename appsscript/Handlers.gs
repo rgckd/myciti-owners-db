@@ -125,11 +125,13 @@
 
   function flagSite(params, caller) {
     const flagging = params.flag === 'true' || params.flag === true;
+    const comment = String(params.comment || '').trim();
     const fields = {
       FlaggedForAttention: flagging ? 'TRUE' : 'FALSE',
-      FlagComment: flagging ? (params.comment || '') : '',
-      FlaggedBy: flagging ? caller.email : '',
-      FlaggedAt: flagging ? NOW_ISO() : ''
+      // Keep metadata even when clearing so resolution details are not lost.
+      FlagComment: comment,
+      FlaggedBy: caller.email,
+      FlaggedAt: NOW_ISO()
     };
     const changes = updateRowFields(CONFIG.TABS.SITES, 'SiteID', params.siteId, fields, caller);
     writeAuditChanges(caller, 'Sites', params.siteId, changes);
@@ -229,11 +231,13 @@
 
   function flagOwner(params, caller) {
     const flagging = params.flag === 'true' || params.flag === true;
+    const comment = String(params.comment || '').trim();
     const fields = {
       FlaggedForAttention: flagging ? 'TRUE' : 'FALSE',
-      FlagComment: flagging ? (params.comment || '') : '',
-      FlaggedBy: flagging ? caller.email : '',
-      FlaggedAt: flagging ? NOW_ISO() : ''
+      // Keep metadata even when clearing so resolution details are not lost.
+      FlagComment: comment,
+      FlaggedBy: caller.email,
+      FlaggedAt: NOW_ISO()
     };
     const changes = updateRowFields(CONFIG.TABS.OWNERS, 'OwnerID', params.ownerId, fields, caller);
     writeAuditChanges(caller, 'Owners', params.ownerId, changes);
