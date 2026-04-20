@@ -12,6 +12,7 @@ import Admin from './pages/Admin.jsx'
 import Verify from './pages/Verify.jsx'
 import PaymentsView from './pages/PaymentsView.jsx'
 import CallLogsView from './pages/CallLogsView.jsx'
+import Reports from './pages/Reports.jsx'
 
 function ProtectedApp() {
   const { user, loading } = useAuth()
@@ -34,6 +35,7 @@ function ProtectedApp() {
         <Route path="/followups"  element={<FollowUps />} />
         <Route path="/payments"   element={<PaymentsView />} />
         <Route path="/calllogs"   element={<CallLogsView />} />
+        <Route path="/reports"    element={<Reports />} />
         <Route path="/audit"      element={<AuditView />} />
         <Route path="/admin"      element={<Admin />} />
         <Route path="*"           element={<Navigate to="/" replace />} />
