@@ -102,8 +102,10 @@ export const updatePaymentHead = (p) => call('updatePaymentHead', p)
 export const getCallLog     = (p={}) => call('getCallLog', p)
 export const createCallLog  = (p) => call('createCallLog', p)
 export const updateCallLog  = (p) => call('updateCallLog', p)
-export const markFollowUpDone = (logId) => call('markFollowUpDone', { logId })
+export const markFollowUpDone = (logId, resolutionComment = '') =>
+  call('markFollowUpDone', { logId, resolutionComment })
 export const getFollowUps   = (p={}) => call('getFollowUps', p)
+export const getAssignableUsers = () => call('getAssignableUsers')
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
 export const getStats       = () => call('getStats')

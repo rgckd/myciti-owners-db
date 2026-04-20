@@ -1,8 +1,19 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { getCallLog, createCallLog, updateCallLog, markFollowUpDone, getSites } from '../utils/api.js'
+import { getCallLog, createCallLog, updateCallLog, markFollowUpDone, getSites, getAssignableUsers } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatDate, canEdit } from '../utils/constants.js'
 import { getSitesCache } from '../pages/SiteRegistry.jsx'
+
+function parseFollowUpParts(rawFollowUp) {
+  const text = String(rawFollowUp || '').trim()
+  const marker = '//Resolution:'
+  const markerIdx = text.indexOf(marker)
+  if (markerIdx < 0) return { action: text, resolution: '' }
+  return {
+    action: text.slice(0, markerIdx).trim(),
+    resolution: text.slice(markerIdx + marker.length).trim(),
+  }
+}
 
 export default function CallLogsView() {
   const { user } = useAuth()
@@ -13,6 +24,7 @@ export default function CallLogsView() {
   const [tab, setTab]         = useState('all')   // 'all' | 'open' | 'mine'
   const [editing, setEditing] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [assignableUsers, setAssignableUsers] = useState([])
 
   const canAct = canEdit(role, 'calllog')
 
@@ -27,6 +39,9 @@ export default function CallLogsView() {
   }, [])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    getAssignableUsers().then(setAssignableUsers).catch(console.error)
+  }, [])
 
   const filtered = useMemo(() => {
     if (tab === 'open') return logs.filter(l => l.FollowUpAction && l.FollowUpDone !== 'TRUE')
@@ -105,6 +120,7 @@ export default function CallLogsView() {
         <CallLogModal
           log={editing}
           canAct={canAct}
+          assignableUsers={assignableUsers}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load() }}
         />
@@ -112,6 +128,7 @@ export default function CallLogsView() {
 
       {showAdd && (
         <AddCallLogModal
+          assignableUsers={assignableUsers}
           onClose={() => setShowAdd(false)}
           onSaved={() => { setShowAdd(false); load() }}
         />
@@ -121,7 +138,8 @@ export default function CallLogsView() {
 }
 
 function LogRow({ log, canAct, onClick }) {
-  const hasFollowUp = !!log.FollowUpAction
+  const followUp = parseFollowUpParts(log.FollowUpAction)
+  const hasFollowUp = !!followUp.action
   const isDone = log.FollowUpDone === 'TRUE'
 
   return (
@@ -148,22 +166,30 @@ function LogRow({ log, canAct, onClick }) {
       </td>
 
       {/* Summary */}
-      <td style={{ padding: '10px 8px', color: 'var(--ink)', maxWidth: 420, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <td style={{ padding: '10px 8px', color: 'var(--ink)', lineHeight: 1.4 }}>
         {log.Summary}
       </td>
 
       {/* Follow-up */}
-      <td style={{ padding: '10px 8px', width: 160 }}>
+      <td style={{ padding: '10px 8px', width: 280 }}>
         {hasFollowUp ? (
-          <span style={{
-            fontSize: 11, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap',
-            background: isDone ? 'var(--paid-bg,#EBF5E0)' : 'var(--tc-light)',
-            color: isDone ? 'var(--paid)' : 'var(--tc)',
-            border: `1px solid ${isDone ? 'var(--paid)' : 'var(--tc-mid)'}`,
-          }}>
-            {isDone ? '✓ ' : '→ '}{log.FollowUpAction}
-          </span>
-        ) : '—'}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{
+              fontSize: 11, padding: '2px 8px', borderRadius: 999, width: 'fit-content',
+              background: isDone ? 'var(--paid-bg,#EBF5E0)' : 'var(--tc-light)',
+              color: isDone ? 'var(--paid)' : 'var(--tc)',
+              border: `1px solid ${isDone ? 'var(--paid)' : 'var(--tc-mid)'}`,
+            }}>
+              {isDone ? '✓ ' : '→ '}{followUp.action}
+            </span>
+            {log.AssignedToName && (
+              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>Assigned: {log.AssignedToName}</span>
+            )}
+            {followUp.resolution && (
+              <span style={{ fontSize: 11, color: 'var(--ink-2)' }}>Resolution: {followUp.resolution}</span>
+            )}
+          </div>
+        ) : <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>No follow-up</span>}
       </td>
 
       {/* Logged by */}
@@ -174,19 +200,39 @@ function LogRow({ log, canAct, onClick }) {
   )
 }
 
-function CallLogModal({ log, canAct, onClose, onSaved }) {
+function CallLogModal({ log, canAct, assignableUsers, onClose, onSaved }) {
+  const parsedFollowUp = parseFollowUpParts(log.FollowUpAction)
   const [summary, setSummary]       = useState(log.Summary || '')
-  const [followUp, setFollowUp]     = useState(log.FollowUpAction || '')
+  const [followUp, setFollowUp]     = useState(parsedFollowUp.action)
+  const [assignedTo, setAssignedTo] = useState(log.AssignedTo || '')
+  const [resolutionComment, setResolutionComment] = useState('')
   const [saving, setSaving]         = useState(false)
   const [marking, setMarking]       = useState(false)
   const [error, setError]           = useState('')
 
+  useEffect(() => {
+    if (!followUp.trim()) setAssignedTo('')
+  }, [followUp])
+
   const isDone = log.FollowUpDone === 'TRUE'
+  const selectedAssignee = assignableUsers.find(u => u.email === assignedTo)
 
   async function handleSave() {
+    const followUpText = followUp.trim()
+    if (followUpText && !selectedAssignee) {
+      setError('Select who should follow up when follow-up action is provided')
+      return
+    }
+
     setSaving(true); setError('')
     try {
-      await updateCallLog({ logId: log.LogID, Summary: summary, FollowUpAction: followUp })
+      await updateCallLog({
+        logId: log.LogID,
+        Summary: summary.trim(),
+        FollowUpAction: followUpText,
+        AssignedTo: followUpText ? selectedAssignee.email : '',
+        AssignedToName: followUpText ? selectedAssignee.displayName : '',
+      })
       onSaved()
     } catch (e) { setError(e.message) }
     finally { setSaving(false) }
@@ -195,7 +241,7 @@ function CallLogModal({ log, canAct, onClose, onSaved }) {
   async function handleMarkDone() {
     setMarking(true); setError('')
     try {
-      await markFollowUpDone(log.LogID)
+      await markFollowUpDone(log.LogID, resolutionComment.trim())
       onSaved()
     } catch (e) { setError(e.message) }
     finally { setMarking(false) }
@@ -267,8 +313,26 @@ function CallLogModal({ log, canAct, onClose, onSaved }) {
             )}
           </div>
 
+          {followUp.trim() && (
+            <div>
+              <label className="label">Who should follow up *</label>
+              {canAct ? (
+                <select className="input" value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
+                  <option value="">Select user</option>
+                  {assignableUsers.map(u => (
+                    <option key={u.email} value={u.email}>{u.displayName} ({u.role})</option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{ fontSize: 13, color: log.AssignedToName ? 'var(--ink)' : 'var(--ink-3)' }}>
+                  {log.AssignedToName || 'Not assigned'}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Follow-up done status */}
-          {log.FollowUpAction && (
+          {followUp.trim() && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{
                 fontSize: 11, padding: '2px 10px', borderRadius: 999,
@@ -283,6 +347,26 @@ function CallLogModal({ log, canAct, onClose, onSaved }) {
                   {marking ? 'Marking…' : 'Mark done'}
                 </button>
               )}
+            </div>
+          )}
+
+          {!isDone && canAct && followUp.trim() && (
+            <div>
+              <label className="label">Resolution comment (optional)</label>
+              <textarea
+                className="input"
+                rows={2}
+                value={resolutionComment}
+                onChange={e => setResolutionComment(e.target.value)}
+                placeholder="Will be appended as //Resolution: ..."
+                style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
+              />
+            </div>
+          )}
+
+          {parsedFollowUp.resolution && (
+            <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+              <b style={{ color: 'var(--ink)' }}>Resolution:</b> {parsedFollowUp.resolution}
             </div>
           )}
 
@@ -306,14 +390,14 @@ function CallLogModal({ log, canAct, onClose, onSaved }) {
   )
 }
 
-function AddCallLogModal({ onClose, onSaved }) {
-  const { user } = useAuth()
+function AddCallLogModal({ assignableUsers, onClose, onSaved }) {
   const [allSites, setAllSites]   = useState(() => getSitesCache())
   const [siteSearch, setSiteSearch] = useState('')
   const [sitePhase, setSitePhase]   = useState('All')
   const [selectedSiteId, setSelectedSiteId] = useState('')
   const [summary, setSummary]     = useState('')
   const [followUp, setFollowUp]   = useState('')
+  const [selectedAssignee, setSelectedAssignee] = useState('')
   const [date, setDate]           = useState(new Date().toISOString().split('T')[0])
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
@@ -342,18 +426,32 @@ function AddCallLogModal({ onClose, onSaved }) {
 
   const selectedSite = allSites.find(s => s.SiteID === selectedSiteId)
 
+  useEffect(() => {
+    if (!followUp.trim()) setSelectedAssignee('')
+  }, [followUp])
+
   async function handleSave() {
+    const followUpText = followUp.trim()
+    const assignee = assignableUsers.find(u => u.email === selectedAssignee)
+
     if (!selectedSiteId || !summary.trim()) {
       setError('Please select a site and enter a summary')
       return
     }
+    if (followUpText && !assignee) {
+      setError('Select who should follow up when follow-up action is provided')
+      return
+    }
+
     setSaving(true); setError('')
     try {
       await createCallLog({
         siteId: selectedSiteId,
         logDate: date,
         summary: summary.trim(),
-        followUpAction: followUp.trim(),
+        followUpAction: followUpText,
+        assignedTo: followUpText ? assignee?.email || '' : '',
+        assignedToName: followUpText ? assignee?.displayName || '' : '',
       })
       onSaved()
     } catch (e) { setError(e.message) }
@@ -470,6 +568,18 @@ function AddCallLogModal({ onClose, onSaved }) {
               onChange={e => setFollowUp(e.target.value)}
             />
           </div>
+
+          {followUp.trim() && (
+            <div>
+              <label className="label">Who should follow up *</label>
+              <select className="input" value={selectedAssignee} onChange={e => setSelectedAssignee(e.target.value)}>
+                <option value="">Select user</option>
+                {assignableUsers.map(u => (
+                  <option key={u.email} value={u.email}>{u.displayName} ({u.role})</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {error && (
             <div style={{ fontSize: 12, color: 'var(--disputed)', padding: '8px 12px', background: 'var(--disputed-bg)', borderRadius: 'var(--radius-md)' }}>

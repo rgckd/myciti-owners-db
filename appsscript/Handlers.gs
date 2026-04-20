@@ -447,9 +447,21 @@
   }
 
   function markFollowUpDone(params, caller) {
-    updateRowFields(CONFIG.TABS.CALL_LOG, 'LogID', params.logId, {
+    const fields = {
       FollowUpDone: 'TRUE', DoneBy: caller.email, DoneAt: NOW_ISO()
-    }, caller);
+    };
+
+    const resolutionComment = String(params.resolutionComment || '').trim();
+    if (resolutionComment) {
+      const found = findRow(CONFIG.TABS.CALL_LOG, 'LogID', params.logId);
+      if (found) {
+        const followUpIdx = found.headers.indexOf('FollowUpAction');
+        const existingFollowUp = followUpIdx >= 0 ? String(found.row[followUpIdx] || '').trim() : '';
+        fields.FollowUpAction = `${existingFollowUp}${existingFollowUp ? ' ' : ''}//Resolution: ${resolutionComment}`;
+      }
+    }
+
+    updateRowFields(CONFIG.TABS.CALL_LOG, 'LogID', params.logId, fields, caller);
     return { done: true };
   }
 
@@ -567,6 +579,20 @@
   }
 
   // ─── USER MANAGEMENT ────────────────────────────────────────────────────────
+
+  function getAssignableUsers() {
+    const users = sheetToObjects(CONFIG.TABS.ROLES)
+      .filter(u => u.UserEmail && u.IsDeleted !== 'TRUE')
+      .map(u => ({
+        email: String(u.UserEmail || '').trim(),
+        displayName: String(u.DisplayName || u.UserEmail || '').trim(),
+        role: String(u.Role || '').trim(),
+      }))
+      .filter(u => u.email && u.role);
+
+    users.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return users;
+  }
 
   function getUsers() { return sheetToObjects(CONFIG.TABS.ROLES); }
 

@@ -129,6 +129,7 @@ function handleRequest(e, method, params) {
       case 'updateCallLog':     requireDomain(role,'calllog','edit');  return jsonResponse(updateCallLog(params, caller, role));
       case 'markFollowUpDone':  requireDomain(role,'calllog','edit');  return jsonResponse(markFollowUpDone(params, caller));
       case 'getFollowUps':      requireDomain(role,'calllog','view');  return jsonResponse(getFollowUps(params));
+      case 'getAssignableUsers':requireDomain(role,'calllog','view');  return jsonResponse(getAssignableUsers());
 
       // ── AUDIT ──
       case 'getAuditLog':       requireRole(role, CONFIG.ROLES.EDIT);  return jsonResponse(getAuditLog(params));

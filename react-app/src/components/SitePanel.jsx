@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, updatePayment, deletePayment, createCallLog, markFollowUpDone, uploadFileToDrive } from '../utils/api.js'
+import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, updatePayment, deletePayment, createCallLog, updateCallLog, markFollowUpDone, getAssignableUsers, uploadFileToDrive } from '../utils/api.js'
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
@@ -23,6 +23,9 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [selectedPayment, setSelectedPayment] = useState(null)
   const [noteText, setNoteText] = useState('')
   const [followup, setFollowup] = useState('')
+  const [selectedAssignee, setSelectedAssignee] = useState('')
+  const [assignableUsers, setAssignableUsers] = useState([])
+  const [noteError, setNoteError] = useState('')
   const [savingNote, setSavingNote] = useState(false)
 
   const load = useCallback(async () => {
@@ -43,6 +46,17 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   }, [siteId])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    getAssignableUsers().then(setAssignableUsers).catch(console.error)
+  }, [])
+
+  useEffect(() => {
+    if (!followup.trim()) {
+      setSelectedAssignee('')
+      setNoteError('')
+    }
+  }, [followup])
 
   const dues = heads
     .filter(h => h.IsActive === 'TRUE')
@@ -86,17 +100,31 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   }
 
   async function handleSaveNote() {
-    if (!noteText.trim()) return
+    const summaryText = noteText.trim()
+    const followUpText = followup.trim()
+    const assignee = assignableUsers.find(u => u.email === selectedAssignee)
+
+    if (!summaryText) return
+    if (followUpText && !assignee) {
+      setNoteError('Select who should follow up when follow-up action is provided')
+      return
+    }
+
     setSavingNote(true)
+    setNoteError('')
     try {
       await createCallLog({
         siteId,
         ownerId: data?.currentOwners?.[0]?.OwnerID || '',
-        summary: noteText,
-        followUpAction: followup,
+        summary: summaryText,
+        followUpAction: followUpText,
+        assignedTo: followUpText ? assignee?.email || '' : '',
+        assignedToName: followUpText ? assignee?.displayName || '' : '',
       })
-      setNoteText(''); setFollowup('')
+      setNoteText(''); setFollowup(''); setSelectedAssignee('')
       load()
+    } catch (e) {
+      setNoteError(e.message || 'Failed to save note')
     } finally { setSavingNote(false) }
   }
 
@@ -303,6 +331,24 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
                   value={followup}
                   onChange={e => setFollowup(e.target.value)}
                 />
+                {followup.trim() && (
+                  <select
+                    className="input"
+                    style={{ marginBottom: 8 }}
+                    value={selectedAssignee}
+                    onChange={e => setSelectedAssignee(e.target.value)}
+                  >
+                    <option value="">Who should follow up? *</option>
+                    {assignableUsers.map(u => (
+                      <option key={u.email} value={u.email}>{u.displayName} ({u.role})</option>
+                    ))}
+                  </select>
+                )}
+                {noteError && (
+                  <div style={{ fontSize: 12, color: 'var(--disputed)', marginBottom: 8 }}>
+                    {noteError}
+                  </div>
+                )}
                 <button
                   className="btn btn-primary btn-sm"
                   disabled={!noteText.trim() || savingNote}
@@ -316,7 +362,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
             {callLog.length === 0 ? (
               <div className="empty-state"><p>No call notes yet</p></div>
             ) : callLog.map(log => (
-              <LogEntry key={log.LogID} log={log} onDone={() => { markFollowUpDone(log.LogID).then(load) }} role={role} />
+              <LogEntry key={log.LogID} log={log} role={role} assignableUsers={assignableUsers} onSaved={load} />
             ))}
           </div>
         )}
@@ -1025,30 +1071,185 @@ function UploadAttachmentModal({ siteId, site, onClose, onSaved }) {
   )
 }
 
-function LogEntry({ log, onDone, role }) {
-  const canDone = ['Edit', 'Payments', 'Caller', 'Admin'].includes(role)
+function parseFollowUpParts(rawFollowUp) {
+  const text = String(rawFollowUp || '').trim()
+  const marker = '//Resolution:'
+  const markerIdx = text.indexOf(marker)
+  if (markerIdx < 0) return { action: text, resolution: '' }
+  return {
+    action: text.slice(0, markerIdx).trim(),
+    resolution: text.slice(markerIdx + marker.length).trim(),
+  }
+}
+
+function LogEntry({ log, role, assignableUsers, onSaved }) {
+  const canAct = ['Edit', 'Payments', 'Caller', 'Admin'].includes(role)
+  const [expanded, setExpanded] = useState(false)
+  const [summary, setSummary] = useState(log.Summary || '')
+  const parsed = parseFollowUpParts(log.FollowUpAction)
+  const [followUp, setFollowUp] = useState(parsed.action)
+  const [assignedTo, setAssignedTo] = useState(log.AssignedTo || '')
+  const [resolutionComment, setResolutionComment] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [marking, setMarking] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const nextParsed = parseFollowUpParts(log.FollowUpAction)
+    setSummary(log.Summary || '')
+    setFollowUp(nextParsed.action)
+    setAssignedTo(log.AssignedTo || '')
+    setResolutionComment('')
+    setError('')
+  }, [log])
+
+  useEffect(() => {
+    if (!followUp.trim()) setAssignedTo('')
+  }, [followUp])
+
+  const isDone = log.FollowUpDone === 'TRUE'
+  const assignedUser = assignableUsers.find(u => u.email === assignedTo)
+
+  async function handleSave() {
+    const followUpText = followUp.trim()
+    if (followUpText && !assignedUser) {
+      setError('Select who should follow up when follow-up action is provided')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      await updateCallLog({
+        logId: log.LogID,
+        Summary: summary.trim(),
+        FollowUpAction: followUpText,
+        AssignedTo: followUpText ? assignedUser.email : '',
+        AssignedToName: followUpText ? assignedUser.displayName : '',
+      })
+      onSaved()
+    } catch (e) {
+      setError(e.message || 'Failed to save changes')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleMarkDone() {
+    setMarking(true)
+    setError('')
+    try {
+      await markFollowUpDone(log.LogID, resolutionComment.trim())
+      onSaved()
+    } catch (e) {
+      setError(e.message || 'Failed to mark follow-up done')
+    } finally {
+      setMarking(false)
+    }
+  }
+
   return (
     <div style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink)' }}>{log.CalledBy}</span>
+      <div
+        style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, cursor: 'pointer' }}
+        onClick={() => setExpanded(v => !v)}
+      >
+        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink)' }}>
+          {log.CalledBy} {log.AssignedToName ? `→ ${log.AssignedToName}` : ''}
+        </span>
         <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{formatDate(log.LogDate)}</span>
       </div>
       <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.5 }}>{log.Summary}</div>
-      {log.FollowUpAction && (
+      {parsed.action && (
         <div style={{
           marginTop: 6, display: 'flex', alignItems: 'center', gap: 8
         }}>
           <span style={{
             fontSize: 11, padding: '2px 8px', borderRadius: 999,
-            background: log.FollowUpDone === 'TRUE' ? 'var(--paid-bg)' : 'var(--tc-light)',
-            color: log.FollowUpDone === 'TRUE' ? 'var(--paid)' : 'var(--tc)',
+            background: isDone ? 'var(--paid-bg)' : 'var(--tc-light)',
+            color: isDone ? 'var(--paid)' : 'var(--tc)',
           }}>
-            {log.FollowUpDone === 'TRUE' ? '✓' : '→'} {log.FollowUpAction}
+            {isDone ? '✓' : '→'} {parsed.action}
           </span>
-          {log.FollowUpDone !== 'TRUE' && canDone && (
-            <button className="btn btn-ghost btn-sm" onClick={onDone} style={{ fontSize: 11 }}>
-              Mark done
-            </button>
+        </div>
+      )}
+      {parsed.resolution && (
+        <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-2)' }}>
+          Resolution: {parsed.resolution}
+        </div>
+      )}
+
+      {expanded && (
+        <div style={{ marginTop: 8, padding: '10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--surface-2)' }}>
+          <div style={{ marginBottom: 8 }}>
+            <label className="label">Summary</label>
+            <textarea
+              className="input"
+              rows={3}
+              value={summary}
+              onChange={e => setSummary(e.target.value)}
+              disabled={!canAct}
+              style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            <label className="label">Follow-up action</label>
+            <input
+              className="input"
+              value={followUp}
+              onChange={e => setFollowUp(e.target.value)}
+              disabled={!canAct}
+              placeholder="e.g. Call back after payment due date"
+            />
+          </div>
+
+          {followUp.trim() && (
+            <div style={{ marginBottom: 8 }}>
+              <label className="label">Who should follow up *</label>
+              <select
+                className="input"
+                value={assignedTo}
+                onChange={e => setAssignedTo(e.target.value)}
+                disabled={!canAct}
+              >
+                <option value="">Select user</option>
+                {assignableUsers.map(u => (
+                  <option key={u.email} value={u.email}>{u.displayName} ({u.role})</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {!isDone && canAct && followUp.trim() && (
+            <div style={{ marginBottom: 8 }}>
+              <label className="label">Resolution comment (optional)</label>
+              <input
+                className="input"
+                value={resolutionComment}
+                onChange={e => setResolutionComment(e.target.value)}
+                placeholder="Comment to append as //Resolution: ..."
+              />
+            </div>
+          )}
+
+          {error && (
+            <div style={{ fontSize: 12, color: 'var(--disputed)', marginBottom: 8 }}>
+              {error}
+            </div>
+          )}
+
+          {canAct && (
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              {!isDone && followUp.trim() && (
+                <button className="btn btn-ghost btn-sm" onClick={handleMarkDone} disabled={marking}>
+                  {marking ? 'Marking…' : 'Mark done'}
+                </button>
+              )}
+              <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
           )}
         </div>
       )}
