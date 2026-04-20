@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, flagOwner, createCallLog, markFollowUpDone } from '../utils/api.js'
+import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updatePerson, updateOwner, createCallLog, markFollowUpDone } from '../utils/api.js'
 import { canEdit, canFlag, formatCurrency, formatDate, initials } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
@@ -366,6 +366,73 @@ function PanelShell({ children, onClose }) {
 function OwnerRow({ owner, role, onRefresh }) {
   const p = owner.person || {}
   const isFlagged = owner.FlaggedForAttention === 'TRUE'
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  function startEdit() {
+    setForm({
+      fullName: p.FullName || '',
+      mobile1: p.Mobile1 || '',
+      mobile2: p.Mobile2 || '',
+      email: p.Email || '',
+      address: p.Address || '',
+      membershipNo: owner.MembershipNo || '',
+      memberSince: owner.MemberSince || '',
+      nominatedContact: owner.NominatedContact || '',
+    })
+    setEditing(true)
+  }
+
+  function set(key, val) { setForm(f => ({ ...f, [key]: val })) }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await updatePerson({
+        personId: p.PersonID,
+        fullName: form.fullName,
+        mobile1: form.mobile1,
+        mobile2: form.mobile2,
+        email: form.email,
+        address: form.address,
+      })
+      await updateOwner({
+        ownerId: owner.OwnerID,
+        membershipNo: form.membershipNo,
+        memberSince: form.memberSince,
+        nominatedContact: form.nominatedContact,
+      })
+      setEditing(false)
+      onRefresh()
+    } finally { setSaving(false) }
+  }
+
+  if (editing) {
+    return (
+      <div style={{
+        padding: '12px', borderRadius: 'var(--radius-md)',
+        border: '1px solid var(--tc)', background: 'var(--surface-2)', marginBottom: 8
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <EditField label="Full name"    value={form.fullName}        onChange={v => set('fullName', v)} />
+          <EditField label="Mobile"       value={form.mobile1}         onChange={v => set('mobile1', v)} />
+          <EditField label="Alt mobile"   value={form.mobile2}         onChange={v => set('mobile2', v)} />
+          <EditField label="Email"        value={form.email}           onChange={v => set('email', v)} />
+          <EditField label="Address"      value={form.address}         onChange={v => set('address', v)} />
+          <EditField label="Membership #" value={form.membershipNo}    onChange={v => set('membershipNo', v)} />
+          <EditField label="Member since" value={form.memberSince}     onChange={v => set('memberSince', v)} type="date" />
+          <EditField label="Contact name" value={form.nominatedContact} onChange={v => set('nominatedContact', v)} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{
@@ -384,7 +451,12 @@ function OwnerRow({ owner, role, onRefresh }) {
           {initials(p.FullName || '?')}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 500, fontSize: 14 }}>{p.FullName || '—'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontWeight: 500, fontSize: 14 }}>{p.FullName || '—'}</div>
+            {canEdit(role, 'owners') && (
+              <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={startEdit}>Edit</button>
+            )}
+          </div>
           <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
             {owner.MembershipNo
               ? <span className="mono">{owner.MembershipNo}</span>
@@ -400,6 +472,21 @@ function OwnerRow({ owner, role, onRefresh }) {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function EditField({ label, value, onChange, type = 'text' }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 11, color: 'var(--ink-3)', minWidth: 80, textAlign: 'right' }}>{label}</span>
+      <input
+        className="input"
+        type={type}
+        style={{ flex: 1, padding: '4px 8px', fontSize: 12 }}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      />
     </div>
   )
 }

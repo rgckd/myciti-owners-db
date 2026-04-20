@@ -5,7 +5,6 @@ import styles from './Layout.module.css'
 
 const NAV = [
   { to: '/',         label: 'Site registry', icon: GridIcon,     always: true },
-  { to: '/people',   label: 'Owners',        icon: PersonIcon,   always: true },
   { to: '/payments', label: 'Payments',      icon: PayIcon,      always: true },
   { to: '/calllogs', label: 'Call log',      icon: PhoneLogIcon, always: true },
   { to: '/audit',    label: 'Audit log',     icon: LogIcon,      roles: ['Admin'] },
