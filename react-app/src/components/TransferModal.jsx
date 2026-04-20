@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { transferOwnership } from '../utils/api.js'
+import { useState, useRef } from 'react'
+import { transferOwnership, uploadFileToDrive } from '../utils/api.js'
 import { formatDate } from '../utils/constants.js'
 import DateInput from './DateInput.jsx'
 
@@ -13,11 +13,29 @@ export default function TransferModal({ siteId, fromOwner, onClose, onSaved }) {
   const [transferDate, setTransferDate] = useState(new Date().toISOString().split('T')[0])
   const [salePrice, setSalePrice] = useState('')
   const [docRef, setDocRef] = useState('')
+  const [docFileName, setDocFileName] = useState('')
+  const [docUploading, setDocUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const fileInputRef = useRef(null)
+
+  async function handleDocUpload(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setDocUploading(true); setError('')
+    try {
+      const url = await uploadFileToDrive(file, 'Transfers', siteId)
+      setDocRef(url)
+      setDocFileName(file.name)
+    } catch (err) {
+      setError('Document upload failed: ' + (err.message || 'Unknown error'))
+    } finally { setDocUploading(false) }
+  }
 
   async function handleSave() {
     if (!transferDate) { setError('Transfer date is required'); return }
+    if (!docRef) { setError('Please upload the transfer document before completing'); return }
     setSaving(true); setError('')
     try {
       await transferOwnership({
@@ -79,7 +97,7 @@ export default function TransferModal({ siteId, fromOwner, onClose, onSaved }) {
                 </div>
               </div>
               <p style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 12 }}>
-                This owner's IsCurrent will be set to false. The ownership end date will be set to the transfer date.
+                This person will stop being recorded as the owner of this site. Their ownership will be marked as ended on the transfer date you set in step 3.
               </p>
             </div>
           )}
@@ -115,8 +133,33 @@ export default function TransferModal({ siteId, fromOwner, onClose, onSaved }) {
                 <input className="input" type="number" placeholder="Optional" value={salePrice} onChange={e => setSalePrice(e.target.value)} />
               </div>
               <div>
-                <label className="label">Document reference</label>
-                <input className="input" placeholder="Registration doc no. (optional)" value={docRef} onChange={e => setDocRef(e.target.value)} />
+                <label className="label">Transfer document *</label>
+                <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={handleDocUpload} />
+                {docRef ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      flex: 1, padding: '8px 10px', background: 'var(--paid-bg)',
+                      borderRadius: 'var(--radius-md)', border: '1px solid var(--paid)',
+                      fontSize: 12, color: 'var(--paid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                    }}>
+                      ✓ {docFileName}
+                    </div>
+                    <a href={docRef} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--tc)', textDecoration: 'none', flexShrink: 0 }}>View ↗</a>
+                    <button className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }} onClick={() => fileInputRef.current?.click()}>Replace</button>
+                  </div>
+                ) : (
+                  <button
+                    className="btn btn-sm"
+                    style={{ width: '100%' }}
+                    disabled={docUploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {docUploading ? 'Uploading…' : '↑ Upload sale deed / registration doc'}
+                  </button>
+                )}
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>
+                  Upload the sale deed or registration certificate (PDF or photo). Required to complete transfer.
+                </div>
               </div>
             </div>
           )}
@@ -137,7 +180,7 @@ export default function TransferModal({ siteId, fromOwner, onClose, onSaved }) {
           {step < 2 ? (
             <button className="btn btn-primary" onClick={() => setStep(s => s + 1)}>Next</button>
           ) : (
-            <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
+            <button className="btn btn-primary" disabled={saving || docUploading || !docRef} onClick={handleSave}>
               {saving ? 'Saving…' : 'Complete transfer'}
             </button>
           )}

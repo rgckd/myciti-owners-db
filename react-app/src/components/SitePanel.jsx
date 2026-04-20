@@ -238,21 +238,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
                 <summary style={{ fontSize: 12, color: 'var(--ink-2)', cursor: 'pointer', marginBottom: 8 }}>
                   Ownership history ({pastOwners.length})
                 </summary>
-                {pastOwners.map(o => (
-                  <div key={o.OwnerID} style={{
-                    padding: '8px 0', borderBottom: '1px solid var(--border)',
-                    display: 'flex', justifyContent: 'space-between', fontSize: 12
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{o.person?.FullName || '—'}</div>
-                      <div style={{ color: 'var(--ink-3)' }}>{o.MembershipNo || 'Non-member'}</div>
-                    </div>
-                    <div style={{ color: 'var(--ink-3)', textAlign: 'right', fontSize: 11 }}>
-                      <div>{formatDate(o.OwnershipStartDate) || '—'} →</div>
-                      <div>{formatDate(o.OwnershipEndDate) || '—'}</div>
-                    </div>
-                  </div>
-                ))}
+                {pastOwners.map(o => <PastOwnerRow key={o.OwnerID} owner={o} />)}
               </details>
             )}
           </div>
@@ -1087,6 +1073,39 @@ function parseFollowUpParts(rawFollowUp) {
     action: text.slice(0, markerIdx).trim(),
     resolution: text.slice(markerIdx + marker.length).trim(),
   }
+}
+
+function PastOwnerRow({ owner }) {
+  const [expanded, setExpanded] = useState(false)
+  const p = owner.person || {}
+  return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <div
+        onClick={() => setExpanded(e => !e)}
+        style={{ padding: '8px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontSize: 12 }}
+      >
+        <div>
+          <div style={{ fontWeight: 500 }}>{p.FullName || '—'}</div>
+          <div style={{ color: 'var(--ink-3)', marginTop: 1 }}>{owner.MembershipNo || 'Non-member'}</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ color: 'var(--ink-3)', textAlign: 'right', fontSize: 11 }}>
+            <div>{formatDate(owner.OwnershipStartDate) || '—'} →</div>
+            <div>{formatDate(owner.OwnershipEndDate) || '—'}</div>
+          </div>
+          <span style={{ fontSize: 10, color: 'var(--ink-3)' }}>{expanded ? '▲' : '▼'}</span>
+        </div>
+      </div>
+      {expanded && (
+        <div style={{ paddingBottom: 10, paddingLeft: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {p.Mobile1  && <InfoRow label="Mobile"  value={p.Mobile1} />}
+          {p.Mobile2  && <InfoRow label="Alt"     value={p.Mobile2} />}
+          {p.Email    && <InfoRow label="Email"   value={p.Email} />}
+          {p.Address  && <InfoRow label="Address" value={p.Address} />}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function LogEntry({ log, role, assignableUsers, onSaved }) {
