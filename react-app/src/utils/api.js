@@ -29,14 +29,26 @@ async function resolvePostUrl() {
 
 async function callPost(action, params = {}) {
   if (!BASE_URL) throw new Error('VITE_APPS_SCRIPT_URL not configured')
-  const postUrl = await resolvePostUrl()
   const body = JSON.stringify({ action, token: _idToken, ...params })
-  const res = await fetch(postUrl, {
+  const postUrl = await resolvePostUrl()
+  let res = await fetch(postUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // text/plain avoids CORS preflight that can fail on Apps Script endpoints.
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
     body,
     redirect: 'follow',
   })
+
+  // Some signed googleusercontent URLs reject POST with 403; retry against BASE_URL.
+  if (res.status === 403) {
+    res = await fetch(BASE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body,
+      redirect: 'follow',
+    })
+  }
+
   if (!res.ok) {
     const raw = await res.text()
     throw new Error(`Upload request failed (${res.status}). ${raw.slice(0, 180)}`)
