@@ -79,7 +79,8 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
     try {
       await flagSite(siteId, pendingFlag, flagComment.trim())
       setShowFlagModal(false)
-      load()
+      await load()
+      onRefresh?.()
     } finally { setFlagSaving(false) }
   }
 

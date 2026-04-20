@@ -4,6 +4,17 @@ function getSheet(tabName) {
   return SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(tabName);
 }
 
+// Normalise a raw cell value from getValues():
+// booleans → 'TRUE'/'FALSE' strings (Sheets auto-converts setValue('TRUE') to boolean true)
+// empty    → null
+// Date     → ISO string (so JSON serialisation is predictable)
+function normCell(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+  if (v instanceof Date) return v.toISOString();
+  return v;
+}
+
 function sheetToObjects(tabName) {
   const sheet = getSheet(tabName);
   if (!sheet) return [];
@@ -14,10 +25,10 @@ function sheetToObjects(tabName) {
     .filter(row => row.some(cell => cell !== '' && cell !== null))
     .map(row => {
       const obj = {};
-      headers.forEach((h, i) => { obj[h] = row[i] === '' ? null : row[i]; });
+      headers.forEach((h, i) => { obj[h] = normCell(row[i]); });
       return obj;
     })
-    .filter(obj => obj['IsDeleted'] !== 'TRUE' && obj['IsDeleted'] !== true);
+    .filter(obj => obj['IsDeleted'] !== 'TRUE');
 }
 
 function findRow(tabName, pkCol, pkVal) {
@@ -74,9 +85,10 @@ function updateRowFields(tabName, pkCol, pkVal, fieldsObj, caller) {
     const colIdx = headers.indexOf(field);
     if (colIdx < 0) return;
     const oldVal = row[colIdx];
-    if (String(oldVal) === String(newVal)) return;
+    // Normalise both sides: sheet may store boolean true where we wrote 'TRUE'
+    if (String(normCell(oldVal) ?? '') === String(newVal ?? '')) return;
     sheet.getRange(rowIndex, colIdx + 1).setValue(newVal);
-    changes.push({ field, oldVal, newVal });
+    changes.push({ field, oldVal: normCell(oldVal), newVal });
   });
   const modByIdx = headers.indexOf('ModifiedBy');
   const modAtIdx = headers.indexOf('ModifiedAt');
