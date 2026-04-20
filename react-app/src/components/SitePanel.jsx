@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updatePerson, updateOwner, createCallLog, markFollowUpDone } from '../utils/api.js'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updatePerson, updateOwner, createOwner, getPeople, createCallLog, markFollowUpDone } from '../utils/api.js'
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
@@ -15,6 +15,11 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [loading, setLoading] = useState(true)
   const [showPayment, setShowPayment] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
+  const [showAddCoOwner, setShowAddCoOwner] = useState(false)
+  const [showFlagModal, setShowFlagModal] = useState(false)
+  const [pendingFlag, setPendingFlag] = useState(null)
+  const [flagComment, setFlagComment] = useState('')
+  const [flagSaving, setFlagSaving] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [followup, setFollowup] = useState('')
   const [savingNote, setSavingNote] = useState(false)
@@ -62,11 +67,20 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
       }
     })
 
-  async function handleFlagSite(flag) {
-    const comment = flag ? window.prompt('Flag comment (optional):') : ''
-    if (comment === null) return
-    await flagSite(siteId, flag, comment || '')
-    load()
+  function openFlagModal(flag) {
+    setPendingFlag(flag)
+    setFlagComment('')
+    setShowFlagModal(true)
+  }
+
+  async function handleFlagConfirm() {
+    if (!flagComment.trim()) return
+    setFlagSaving(true)
+    try {
+      await flagSite(siteId, pendingFlag, flagComment.trim())
+      setShowFlagModal(false)
+      load()
+    } finally { setFlagSaving(false) }
   }
 
   async function handleSaveNote() {
@@ -157,7 +171,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
                   <button
                     className={`btn btn-sm ${isFlagged ? '' : 'btn-ghost'}`}
                     style={isFlagged ? { background: 'var(--tc)', color: '#fff', borderColor: 'var(--tc)' } : {}}
-                    onClick={() => handleFlagSite(!isFlagged)}
+                    onClick={() => openFlagModal(!isFlagged)}
                   >
                     {isFlagged ? 'Clear flag' : '🚩 Flag'}
                   </button>
@@ -183,7 +197,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
                   <button className="btn btn-ghost btn-sm" onClick={() => setShowTransfer(true)}>
                     Transfer ownership
                   </button>
-                  <button className="btn btn-ghost btn-sm">+ Add co-owner</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setShowAddCoOwner(true)}>+ Add co-owner</button>
                 </div>
               )}
             </div>
@@ -347,6 +361,25 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
           onSaved={() => { setShowTransfer(false); load(); onRefresh() }}
         />
       )}
+
+      {showFlagModal && (
+        <FlagModal
+          flagging={pendingFlag}
+          comment={flagComment}
+          saving={flagSaving}
+          onChange={setFlagComment}
+          onConfirm={handleFlagConfirm}
+          onCancel={() => setShowFlagModal(false)}
+        />
+      )}
+
+      {showAddCoOwner && (
+        <AddCoOwnerModal
+          siteId={siteId}
+          onClose={() => setShowAddCoOwner(false)}
+          onSaved={() => { setShowAddCoOwner(false); load() }}
+        />
+      )}
     </PanelShell>
   )
 }
@@ -366,13 +399,16 @@ function PanelShell({ children, onClose }) {
 function OwnerRow({ owner, role, onRefresh }) {
   const p = owner.person || {}
   const isFlagged = owner.FlaggedForAttention === 'TRUE'
+  const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
-  function startEdit() {
+  function startEdit(e) {
+    e.stopPropagation()
     setSaveError('')
+    setExpanded(true)
     setForm({
       fullName: p.FullName || '',
       mobile1: p.Mobile1 || '',
@@ -441,43 +477,48 @@ function OwnerRow({ owner, role, onRefresh }) {
   }
 
   return (
-    <div style={{
-      padding: '12px', borderRadius: 'var(--radius-md)',
-      border: `1px solid ${isFlagged ? 'var(--tc-mid)' : 'var(--border)'}`,
-      background: isFlagged ? 'var(--tc-light)' : 'var(--surface-2)',
-      marginBottom: 8
-    }}>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+    <div
+      onClick={() => setExpanded(e => !e)}
+      style={{
+        padding: '10px 12px', borderRadius: 'var(--radius-md)',
+        border: `1px solid ${isFlagged ? 'var(--tc-mid)' : 'var(--border)'}`,
+        background: isFlagged ? 'var(--tc-light)' : 'var(--surface-2)',
+        marginBottom: 8, cursor: 'pointer'
+      }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <div style={{
-          width: 36, height: 36, borderRadius: '50%',
+          width: 32, height: 32, borderRadius: '50%',
           background: 'var(--tc-light)', color: 'var(--tc-dark)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, fontWeight: 600, flexShrink: 0
+          fontSize: 12, fontWeight: 600, flexShrink: 0
         }}>
           {initials(p.FullName || '?')}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ fontWeight: 500, fontSize: 14 }}>{p.FullName || '—'}</div>
-            {canEdit(role, 'owners') && (
-              <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={startEdit}>Edit</button>
-            )}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
+          <div style={{ fontWeight: 500, fontSize: 13 }}>{p.FullName || '—'}</div>
+          <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
             {owner.MembershipNo
               ? <span className="mono">{owner.MembershipNo}</span>
               : 'Non-member'
             }
             {owner.MemberSince && ` · Since ${formatDate(owner.MemberSince)}`}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 6 }}>
+        </div>
+        <span style={{ fontSize: 10, color: 'var(--ink-3)', flexShrink: 0 }}>{expanded ? '▲' : '▼'}</span>
+      </div>
+      {expanded && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 8 }}>
             {p.Mobile1 && <InfoRow label="Mobile" value={p.Mobile1} />}
             {p.Mobile2 && <InfoRow label="Alt" value={p.Mobile2} />}
             {p.Email && <InfoRow label="Email" value={p.Email} />}
             {owner.NominatedContact && <InfoRow label="Contact" value={owner.NominatedContact} />}
           </div>
+          {canEdit(role, 'owners') && (
+            <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={startEdit}>Edit</button>
+          )}
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -552,6 +593,126 @@ function DuesRow({ due }) {
           }} />
         </div>
       )}
+    </div>
+  )
+}
+
+function FlagModal({ flagging, comment, saving, onChange, onConfirm, onCancel }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 360, border: '1px solid var(--border)' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14 }}>
+          {flagging ? '🚩 Flag for attention' : 'Clear flag'}
+        </div>
+        <div style={{ padding: '16px 18px' }}>
+          <label className="label">{flagging ? 'Reason for flagging' : 'Reason for clearing'} *</label>
+          <textarea
+            className="input"
+            style={{ resize: 'vertical', minHeight: 72 }}
+            placeholder="Required…"
+            value={comment}
+            autoFocus
+            onChange={e => onChange(e.target.value)}
+          />
+        </div>
+        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="btn" onClick={onCancel}>Cancel</button>
+          <button
+            className="btn btn-primary"
+            disabled={!comment.trim() || saving}
+            onClick={onConfirm}
+          >
+            {saving ? 'Saving…' : flagging ? 'Flag' : 'Clear flag'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AddCoOwnerModal({ siteId, onClose, onSaved }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [membershipNo, setMembershipNo] = useState('')
+  const [memberSince, setMemberSince] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const debounce = useRef(null)
+
+  function handleQuery(v) {
+    setQuery(v)
+    setSelected(null)
+    clearTimeout(debounce.current)
+    if (v.trim().length < 2) { setResults([]); return }
+    debounce.current = setTimeout(async () => {
+      setSearching(true)
+      try { setResults(await getPeople({ q: v.trim() })) }
+      catch { setResults([]) }
+      finally { setSearching(false) }
+    }, 350)
+  }
+
+  async function handleSave() {
+    if (!selected) return
+    setSaving(true); setError('')
+    try {
+      await createOwner({ siteId, personId: selected.PersonID, membershipNo, memberSince })
+      onSaved()
+    } catch (e) { setError(e.message || 'Save failed') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 400, border: '1px solid var(--border)' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+          Add co-owner
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label className="label">Search person *</label>
+            <input className="input" placeholder="Name or phone…" value={query} onChange={e => handleQuery(e.target.value)} autoFocus />
+            {searching && <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>Searching…</div>}
+            {results.length > 0 && !selected && (
+              <div style={{ marginTop: 4, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', maxHeight: 180, overflowY: 'auto' }}>
+                {results.slice(0, 10).map(p => (
+                  <div key={p.PersonID} onClick={() => { setSelected(p); setQuery(p.FullName); setResults([]) }}
+                    style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}>
+                    <div style={{ fontWeight: 500 }}>{p.FullName}</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{p.Mobile1 || p.Email || p.PersonID}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {selected && (
+              <div style={{ marginTop: 4, fontSize: 11, color: 'var(--paid)' }}>
+                ✓ Selected: {selected.FullName}
+                <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8, fontSize: 10 }} onClick={() => { setSelected(null); setQuery('') }}>Change</button>
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="label">Membership #</label>
+            <input className="input" placeholder="MC…" value={membershipNo} onChange={e => setMembershipNo(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Member since</label>
+            <input className="input" type="date" value={memberSince} onChange={e => setMemberSince(e.target.value)} />
+          </div>
+          {error && <div style={{ fontSize: 12, padding: '8px 12px', background: 'var(--disputed-bg)', color: 'var(--disputed)', borderRadius: 'var(--radius-md)' }}>{error}</div>}
+        </div>
+        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={!selected || saving} onClick={handleSave}>
+            {saving ? 'Adding…' : 'Add co-owner'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
