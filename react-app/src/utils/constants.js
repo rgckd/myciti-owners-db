@@ -52,13 +52,21 @@ export function formatDate(d) {
 }
 
 // Converts any date value from Sheets (ISO datetime string, Date object, or YYYY-MM-DD)
-// to the YYYY-MM-DD string required by <input type="date">
+// to the YYYY-MM-DD string required internally. Uses local date methods to avoid
+// UTC↔IST timezone shift (a Sheets date stored as "2026-02-02" comes back as
+// "2026-02-01T18:30:00.000Z" in UTC, so slice(0,10) would give the wrong day).
 export function toDateInput(val) {
   if (!val) return ''
   const s = String(val)
-  // ISO datetime (2021-07-18T...) — take date portion directly, no tz shift
-  if (s.length > 10 && s[4] === '-') return s.slice(0, 10)
-  return s
+  if (s.length === 10 && s[4] === '-') return s  // already YYYY-MM-DD
+  const d = new Date(s)
+  if (!isNaN(d)) {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+  return ''
 }
 
 export function initials(name) {

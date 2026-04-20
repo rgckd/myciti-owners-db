@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { transferOwnership } from '../utils/api.js'
 import { formatDate } from '../utils/constants.js'
+import DateInput from './DateInput.jsx'
 
 const STEPS = ['Outgoing owner', 'Incoming person', 'Transfer details']
 
@@ -107,7 +108,7 @@ export default function TransferModal({ siteId, fromOwner, onClose, onSaved }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
                 <label className="label">Transfer date *</label>
-                <input className="input" type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)} />
+                <DateInput value={transferDate} onChange={setTransferDate} />
               </div>
               <div>
                 <label className="label">Sale price (₹)</label>

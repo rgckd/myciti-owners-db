@@ -515,6 +515,7 @@ function OwnerRow({ owner, role, onRefresh }) {
 }
 
 function EditField({ label, value, onChange, type = 'text' }) {
+  if (type === 'date') return <DateEditField label={label} value={value} onChange={onChange} />
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{ fontSize: 11, color: 'var(--ink-3)', minWidth: 80, textAlign: 'right' }}>{label}</span>
@@ -524,6 +525,44 @@ function EditField({ label, value, onChange, type = 'text' }) {
         style={{ flex: 1, padding: '4px 8px', fontSize: 12 }}
         value={value}
         onChange={e => onChange(e.target.value)}
+      />
+    </div>
+  )
+}
+
+function DateEditField({ label, value, onChange }) {
+  const [text, setText] = useState(() => ymdToDmy(value))
+
+  function ymdToDmy(ymd) {
+    if (!ymd || ymd.length < 10) return ''
+    const [y, m, d] = ymd.split('-')
+    return `${d}/${m}/${y}`
+  }
+
+  function handleChange(e) {
+    let v = e.target.value.replace(/[^\d/]/g, '')
+    // auto-insert slashes
+    if (v.length === 2 && !v.includes('/')) v = v + '/'
+    if (v.length === 5 && v.split('/').length < 3) v = v + '/'
+    setText(v)
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) {
+      const [d, m, y] = v.split('/')
+      onChange(`${y}-${m}-${d}`)
+    } else if (!v) {
+      onChange('')
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 11, color: 'var(--ink-3)', minWidth: 80, textAlign: 'right' }}>{label}</span>
+      <input
+        className="input"
+        style={{ flex: 1, padding: '4px 8px', fontSize: 12 }}
+        value={text}
+        placeholder="dd/mm/yyyy"
+        maxLength={10}
+        onChange={handleChange}
       />
     </div>
   )

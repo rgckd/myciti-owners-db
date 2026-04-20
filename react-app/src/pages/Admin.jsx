@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { getUsers, addUser, updateUser, removeUser, checkSheetAccess,
          getPaymentHeads, createPaymentHead, updatePaymentHead } from '../utils/api.js'
 import { formatDate, toDateInput } from '../utils/constants.js'
+import DateInput from '../components/DateInput.jsx'
 
 const ROLES = ['Edit', 'Payments', 'Caller', 'View']
 
@@ -325,7 +326,7 @@ function PaymentHeadsTab() {
               </div>
               <div>
                 <label className="label">Due date</label>
-                <input className="input" type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
+                <DateInput value={form.dueDate} onChange={v => setForm(f => ({ ...f, dueDate: v }))} />
               </div>
               {editing && (
                 <div>
