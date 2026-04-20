@@ -39,8 +39,8 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
       list = list.filter(s =>
         String(s.SiteNo).toLowerCase().includes(q) ||
         (s.ownerName && s.ownerName.toLowerCase().includes(q)) ||
-        (s.membershipNo && s.membershipNo.toLowerCase().includes(q)) ||
-        (s.mobile && s.mobile.includes(q))
+        (s.membershipNo && String(s.membershipNo).toLowerCase().includes(q)) ||
+        (s.mobile && String(s.mobile).includes(q))
       )
     }
     return list.slice(0, 50)

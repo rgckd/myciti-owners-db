@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { getPayments, getPaymentHeads, updatePayment, uploadFileToDrive } from '../utils/api.js'
+import { getPayments, getPaymentHeads, updatePayment, deletePayment, uploadFileToDrive } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canEdit, formatCurrency, formatDate } from '../utils/constants.js'
 import PaymentModal from '../components/PaymentModal.jsx'
@@ -233,6 +233,7 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
   const [proofUrl, setProofUrl] = useState(payment.ProofURL || '')
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving]   = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError]     = useState('')
   const fileInputRef = useRef(null)
 
@@ -265,6 +266,22 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
       onSaved()
     } catch (e) { setError(e.message) }
     finally { setSaving(false) }
+  }
+
+  async function handleDelete() {
+    const ok = window.confirm('Delete this payment record? This action cannot be undone.')
+    if (!ok) return
+
+    setDeleting(true)
+    setError('')
+    try {
+      await deletePayment(payment.PaymentID)
+      onSaved()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
@@ -376,11 +393,16 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
           )}
         </div>
 
-        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+          <button className="btn" onClick={handleDelete} disabled={saving || deleting} style={{ color: 'var(--disputed)', borderColor: 'var(--disputed)' }}>
+            {deleting ? 'Deleting…' : 'Delete payment'}
+          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
+          <button className="btn btn-primary" disabled={saving || deleting} onClick={handleSave}>
             {saving ? 'Saving…' : 'Save changes'}
           </button>
+          </div>
         </div>
       </div>
     </div>
