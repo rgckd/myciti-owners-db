@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { getCallLog, createCallLog, updateCallLog, markFollowUpDone, getSites, getAssignableUsers } from '../utils/api.js'
+import { getCallLog, createCallLog, updateCallLog, markFollowUpDone, reopenFollowUp, getSites, getAssignableUsers } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatDate, canEdit } from '../utils/constants.js'
 import { getSitesCache } from '../pages/SiteRegistry.jsx'
@@ -91,7 +91,14 @@ export default function CallLogsView() {
             <p>{tab === 'open' ? 'No open follow-ups' : 'No call logs'}</p>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
+            <colgroup>
+              <col style={{ width: 100 }} />
+              <col style={{ width: 190 }} />
+              <col style={{ width: '40%' }} />
+              <col style={{ width: 280 }} />
+              <col style={{ width: 110 }} />
+            </colgroup>
             <thead>
               <tr style={{ position: 'sticky', top: 0, background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
                 {['Date', 'Site', 'Summary', 'Follow-up', 'Logged by'].map(h => (
@@ -166,7 +173,7 @@ function LogRow({ log, canAct, onClick }) {
       </td>
 
       {/* Summary */}
-      <td style={{ padding: '10px 8px', color: 'var(--ink)', lineHeight: 1.4 }}>
+      <td style={{ padding: '10px 8px', color: 'var(--ink)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {log.Summary}
       </td>
 
@@ -182,8 +189,13 @@ function LogRow({ log, canAct, onClick }) {
             }}>
               {isDone ? '✓ ' : '→ '}{followUp.action}
             </span>
-            {log.AssignedToName && (
+            {!isDone && log.AssignedToName && (
               <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>Assigned: {log.AssignedToName}</span>
+            )}
+            {isDone && log.DoneBy && (
+              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                Closed by: {String(log.DoneBy).split('@')[0] || log.DoneBy}
+              </span>
             )}
             {followUp.resolution && (
               <span style={{ fontSize: 11, color: 'var(--ink-2)' }}>Resolution: {followUp.resolution}</span>
@@ -208,6 +220,7 @@ function CallLogModal({ log, canAct, assignableUsers, onClose, onSaved }) {
   const [resolutionComment, setResolutionComment] = useState('')
   const [saving, setSaving]         = useState(false)
   const [marking, setMarking]       = useState(false)
+  const [reopening, setReopening]   = useState(false)
   const [error, setError]           = useState('')
 
   useEffect(() => {
@@ -249,6 +262,15 @@ function CallLogModal({ log, canAct, assignableUsers, onClose, onSaved }) {
 
   return (
     <div style={{
+
+  async function handleReopen() {
+    setReopening(true); setError('')
+    try {
+      await reopenFollowUp(log.LogID)
+      onSaved()
+    } catch (e) { setError(e.message) }
+    finally { setReopening(false) }
+  }
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 1000, padding: 20
@@ -345,6 +367,11 @@ function CallLogModal({ log, canAct, assignableUsers, onClose, onSaved }) {
               {!isDone && canAct && (
                 <button className="btn btn-ghost btn-sm" disabled={marking} onClick={handleMarkDone}>
                   {marking ? 'Marking…' : 'Mark done'}
+                </button>
+              )}
+              {isDone && canAct && (
+                <button className="btn btn-ghost btn-sm" disabled={reopening} onClick={handleReopen}>
+                  {reopening ? 'Reopening…' : 'Reopen follow-up'}
                 </button>
               )}
             </div>

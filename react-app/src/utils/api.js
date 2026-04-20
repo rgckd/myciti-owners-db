@@ -104,6 +104,7 @@ export const createCallLog  = (p) => call('createCallLog', p)
 export const updateCallLog  = (p) => call('updateCallLog', p)
 export const markFollowUpDone = (logId, resolutionComment = '') =>
   call('markFollowUpDone', { logId, resolutionComment })
+export const reopenFollowUp = (logId) => call('reopenFollowUp', { logId })
 export const getFollowUps   = (p={}) => call('getFollowUps', p)
 export const getAssignableUsers = () => call('getAssignableUsers')
 

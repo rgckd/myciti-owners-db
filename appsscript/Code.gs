@@ -128,6 +128,7 @@ function handleRequest(e, method, params) {
       case 'createCallLog':     requireDomain(role,'calllog','edit');  return jsonResponse(createCallLog(params, caller));
       case 'updateCallLog':     requireDomain(role,'calllog','edit');  return jsonResponse(updateCallLog(params, caller, role));
       case 'markFollowUpDone':  requireDomain(role,'calllog','edit');  return jsonResponse(markFollowUpDone(params, caller));
+      case 'reopenFollowUp':    requireDomain(role,'calllog','edit');  return jsonResponse(reopenFollowUp(params, caller));
       case 'getFollowUps':      requireDomain(role,'calllog','view');  return jsonResponse(getFollowUps(params));
       case 'getAssignableUsers':requireDomain(role,'calllog','view');  return jsonResponse(getAssignableUsers());
 

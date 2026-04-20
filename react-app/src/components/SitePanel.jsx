@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, updatePayment, deletePayment, createCallLog, updateCallLog, markFollowUpDone, getAssignableUsers, uploadFileToDrive } from '../utils/api.js'
+import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, updatePayment, deletePayment, createCallLog, updateCallLog, markFollowUpDone, reopenFollowUp, getAssignableUsers, uploadFileToDrive } from '../utils/api.js'
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
@@ -122,7 +122,8 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
         assignedToName: followUpText ? assignee?.displayName || '' : '',
       })
       setNoteText(''); setFollowup(''); setSelectedAssignee('')
-      load()
+      await load()
+      onRefresh?.()
     } catch (e) {
       setNoteError(e.message || 'Failed to save note')
     } finally { setSavingNote(false) }
@@ -362,7 +363,13 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
             {callLog.length === 0 ? (
               <div className="empty-state"><p>No call notes yet</p></div>
             ) : callLog.map(log => (
-              <LogEntry key={log.LogID} log={log} role={role} assignableUsers={assignableUsers} onSaved={load} />
+              <LogEntry
+                key={log.LogID}
+                log={log}
+                role={role}
+                assignableUsers={assignableUsers}
+                onSaved={async () => { await load(); onRefresh?.() }}
+              />
             ))}
           </div>
         )}
@@ -1092,6 +1099,7 @@ function LogEntry({ log, role, assignableUsers, onSaved }) {
   const [resolutionComment, setResolutionComment] = useState('')
   const [saving, setSaving] = useState(false)
   const [marking, setMarking] = useState(false)
+  const [reopening, setReopening] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -1145,6 +1153,19 @@ function LogEntry({ log, role, assignableUsers, onSaved }) {
       setError(e.message || 'Failed to mark follow-up done')
     } finally {
       setMarking(false)
+    }
+  }
+
+  async function handleReopen() {
+    setReopening(true)
+    setError('')
+    try {
+      await reopenFollowUp(log.LogID)
+      onSaved()
+    } catch (e) {
+      setError(e.message || 'Failed to reopen follow-up')
+    } finally {
+      setReopening(false)
     }
   }
 
@@ -1244,6 +1265,11 @@ function LogEntry({ log, role, assignableUsers, onSaved }) {
               {!isDone && followUp.trim() && (
                 <button className="btn btn-ghost btn-sm" onClick={handleMarkDone} disabled={marking}>
                   {marking ? 'Marking…' : 'Mark done'}
+                </button>
+              )}
+              {isDone && followUp.trim() && (
+                <button className="btn btn-ghost btn-sm" onClick={handleReopen} disabled={reopening}>
+                  {reopening ? 'Reopening…' : 'Reopen follow-up'}
                 </button>
               )}
               <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>

@@ -465,6 +465,13 @@
     return { done: true };
   }
 
+  function reopenFollowUp(params, caller) {
+    updateRowFields(CONFIG.TABS.CALL_LOG, 'LogID', params.logId, {
+      FollowUpDone: 'FALSE', DoneBy: '', DoneAt: ''
+    }, caller);
+    return { reopened: true };
+  }
+
   function getFollowUps(params) {
     let logs = sheetToObjects(CONFIG.TABS.CALL_LOG).filter(l =>
       l.FollowUpDone !== 'TRUE' && l.FollowUpAction && String(l.FollowUpAction).trim() !== ''
