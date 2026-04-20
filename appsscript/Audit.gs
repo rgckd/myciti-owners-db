@@ -3,6 +3,9 @@
 function writeAudit(caller, action, tab, recordId, fieldName, oldValue, newValue) {
   try {
     const sheet = getSheet(CONFIG.TABS.AUDIT_LOG);
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(['AuditID','Timestamp','UserEmail','UserName','Action','Tab','RecordID','FieldName','OldValue','NewValue']);
+    }
     const auditId = 'AU' + new Date().getTime();
     sheet.appendRow([
       auditId,
