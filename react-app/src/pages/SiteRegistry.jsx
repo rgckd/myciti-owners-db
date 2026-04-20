@@ -62,7 +62,10 @@ export default function SiteRegistry() {
     if (phase !== 'All') list = list.filter(s => String(s.Phase) === phase)
     if (memberFilter === 'members') list = list.filter(s => !!s.membershipNo)
     if (memberFilter === 'non-members') list = list.filter(s => !s.membershipNo)
-    if (payFilter) list = list.filter(s => s.payStatus === payFilter)
+    if (payFilter) list = list.filter(s => {
+      const effective = s.payStatus === 'nocontact' ? 'unpaid' : s.payStatus
+      return effective === payFilter
+    })
     const anyFlagFilter = flagFilters.noPhone || flagFilters.followUp || flagFilters.issue
     if (anyFlagFilter) list = list.filter(s =>
       (flagFilters.noPhone && !s.mobile) ||
