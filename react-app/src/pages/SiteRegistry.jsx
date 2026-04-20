@@ -70,7 +70,7 @@ export default function SiteRegistry() {
     if (anyFlagFilter) list = list.filter(s =>
       (flagFilters.noPhone && !s.mobile) ||
       (flagFilters.followUp && s.hasOpenFollowUp) ||
-      (flagFilters.issue && (s.FlaggedForAttention === 'TRUE' || s.ownerFlagged === true))
+      (flagFilters.issue && s.FlaggedForAttention === 'TRUE')
     )
     if (search) {
       const q = search.toLowerCase()
@@ -100,7 +100,7 @@ export default function SiteRegistry() {
   }, [sites, phase, search, memberFilter, payFilter, flagFilters, sorts])
 
   const flaggedCount = useMemo(() =>
-    sites.filter(s => !s.mobile || s.hasOpenFollowUp || s.FlaggedForAttention === 'TRUE' || s.ownerFlagged).length,
+    sites.filter(s => !s.mobile || s.hasOpenFollowUp || s.FlaggedForAttention === 'TRUE').length,
   [sites])
 
   function addSort() {

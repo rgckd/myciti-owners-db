@@ -390,7 +390,6 @@ function PanelShell({ children, onClose }) {
 
 function OwnerRow({ owner, role, onRefresh }) {
   const p = owner.person || {}
-  const isFlagged = owner.FlaggedForAttention === 'TRUE'
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
@@ -580,8 +579,8 @@ function OwnerRow({ owner, role, onRefresh }) {
       onClick={() => setExpanded(e => !e)}
       style={{
         padding: '10px 12px', borderRadius: 'var(--radius-md)',
-        border: `1px solid ${isFlagged ? 'var(--tc-mid)' : 'var(--border)'}`,
-        background: isFlagged ? 'var(--tc-light)' : 'var(--surface-2)',
+        border: '1px solid var(--border)',
+        background: 'var(--surface-2)',
         marginBottom: 8, cursor: 'pointer'
       }}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>

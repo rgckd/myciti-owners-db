@@ -5,7 +5,7 @@ const PHASE_COLORS = { '1': '#2B6CB0', '2': '#276749' }
 export default function SiteCard({ site, selected, onClick }) {
   const payStatus = site.payStatus === 'nocontact' ? 'unpaid' : site.payStatus
   const edgeColor = PHASE_COLORS[String(site.Phase)] || '#9CA3AF'
-  const isFlagged = site.FlaggedForAttention === 'TRUE' || site.ownerFlagged === true
+  const isFlagged = site.FlaggedForAttention === 'TRUE'
 
   return (
     <div

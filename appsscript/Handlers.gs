@@ -75,7 +75,6 @@
         membershipNo: firstOwner ? firstOwner.MembershipNo : null,
         mobile:       person ? (person.Mobile1 || person.Mobile2 || null) : null,
         ownerStatus:  firstOwner ? firstOwner.Status : null,
-        ownerFlagged: firstOwner ? (firstOwner.FlaggedForAttention === 'TRUE') : false,
         hasOpenFollowUp: openFollowUpSites.has(site.SiteID),
         payStatus,
       };
@@ -230,18 +229,7 @@
   }
 
   function flagOwner(params, caller) {
-    const flagging = params.flag === 'true' || params.flag === true;
-    const comment = String(params.comment || '').trim();
-    const fields = {
-      FlaggedForAttention: flagging ? 'TRUE' : 'FALSE',
-      // Keep metadata even when clearing so resolution details are not lost.
-      FlagComment: comment,
-      FlaggedBy: caller.email,
-      FlaggedAt: NOW_ISO()
-    };
-    const changes = updateRowFields(CONFIG.TABS.OWNERS, 'OwnerID', params.ownerId, fields, caller);
-    writeAuditChanges(caller, 'Owners', params.ownerId, changes);
-    return { flagged: flagging };
+    throw new Error('Owner-level flagging is disabled. Use Site-level flagging only.');
   }
 
   function transferOwnership(params, caller) {
