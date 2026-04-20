@@ -57,9 +57,37 @@ export function formatDate(d) {
 // "2026-02-01T18:30:00.000Z" in UTC, so slice(0,10) would give the wrong day).
 export function toDateInput(val) {
   if (!val) return ''
-  const s = String(val)
+  const s = String(val).trim()
   if (s.length === 10 && s[4] === '-') return s  // already YYYY-MM-DD
-  const d = new Date(s)
+
+  // Handle local format: dd/mm/yyyy
+  const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (dmy) {
+    const d = dmy[1].padStart(2, '0')
+    const m = dmy[2].padStart(2, '0')
+    return `${dmy[3]}-${m}-${d}`
+  }
+
+  // Normalize ordinal date text such as "2nd Feb 2026"
+  const normalized = s
+    .replace(/(\d+)(st|nd|rd|th)/gi, '$1')
+    .replace(/\s+/g, ' ')
+
+  let d = new Date(normalized)
+
+  // Fallback parser: d Mon yyyy
+  if (isNaN(d)) {
+    const parts = normalized.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/)
+    if (parts) {
+      const monthMap = {
+        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+        jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+      }
+      const mon = monthMap[parts[2].slice(0, 3).toLowerCase()]
+      if (mon != null) d = new Date(Number(parts[3]), mon, Number(parts[1]))
+    }
+  }
+
   if (!isNaN(d)) {
     const y = d.getFullYear()
     const m = String(d.getMonth() + 1).padStart(2, '0')
