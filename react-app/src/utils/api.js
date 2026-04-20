@@ -29,21 +29,24 @@ async function resolvePostUrl() {
 
 async function callPost(action, params = {}) {
   if (!BASE_URL) throw new Error('VITE_APPS_SCRIPT_URL not configured')
-  const body = JSON.stringify({ action, token: _idToken, ...params })
-  const postUrl = await resolvePostUrl()
-  let res = await fetch(postUrl, {
-    method: 'POST',
-    // text/plain avoids CORS preflight that can fail on Apps Script endpoints.
-    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-    body,
-    redirect: 'follow',
-  })
+  const payload = encodeURIComponent(JSON.stringify({ action, token: _idToken, ...params }))
+  const body = new URLSearchParams({ payload }).toString()
+  let res
 
-  // Some signed googleusercontent URLs reject POST with 403; retry against BASE_URL.
-  if (res.status === 403) {
+  try {
+    // Post directly to script URL using form encoding; Apps Script exposes payload in e.parameter.
     res = await fetch(BASE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body,
+      redirect: 'follow',
+    })
+  } catch (e) {
+    // Retry once against resolved googleusercontent endpoint if initial POST is blocked.
+    const postUrl = await resolvePostUrl()
+    res = await fetch(postUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
       body,
       redirect: 'follow',
     })

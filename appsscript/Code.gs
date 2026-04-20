@@ -47,10 +47,24 @@ function doPost(e) {
   // Keep doPost for completeness but redirect everything through doGet pattern
   try {
     let params = {}
-    if (e.postData && e.postData.contents) {
-      params = JSON.parse(e.postData.contents)
-    } else if (e.parameter && e.parameter.payload) {
+
+    // Preferred path for browser form-encoded uploads: payload=<encoded JSON>
+    if (e.parameter && e.parameter.payload) {
       params = JSON.parse(decodeURIComponent(e.parameter.payload))
+    } else if (e.postData && e.postData.contents) {
+      // Backward compatibility: raw JSON in body
+      const raw = String(e.postData.contents || '')
+      try {
+        params = JSON.parse(raw)
+      } catch (_) {
+        // Fallback: body might be payload=<encoded JSON>
+        const m = raw.match(/(?:^|&)payload=([^&]+)/)
+        if (m && m[1]) {
+          params = JSON.parse(decodeURIComponent(m[1].replace(/\+/g, '%20')))
+        } else {
+          throw new Error('Invalid POST payload')
+        }
+      }
     }
     return handleRequest(e, 'POST', params)
   } catch(err) {
