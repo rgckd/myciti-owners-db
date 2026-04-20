@@ -4,7 +4,7 @@ import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput } f
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
 
-const TABS = ['Overview', 'Dues', 'Payments', 'Call log', 'Attachments']
+const TABS = ['Overview', 'Payments', 'Call log', 'Attachments']
 
 export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [tab, setTab] = useState('Overview')
@@ -228,26 +228,24 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
           </div>
         )}
 
-        {tab === 'Dues' && (
+        {tab === 'Payments' && (
           <div>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 6 }}>
+              Dues summary
+            </div>
             {dues.length === 0 ? (
-              <div className="empty-state"><p>No active payment heads</p></div>
+              <div className="empty-state" style={{ padding: '18px 0 20px' }}><p>No active payment heads</p></div>
             ) : dues.map(d => (
               <DuesRow key={d.headId} due={d} />
             ))}
-            {canEdit(role, 'payments') && (
-              <button className="btn btn-primary btn-sm" style={{ marginTop: 14, width: '100%' }}
-                onClick={() => setShowPayment(true)}>
-                + Record payment
-              </button>
-            )}
-          </div>
-        )}
 
-        {tab === 'Payments' && (
-          <div>
+            <div style={{ height: 1, background: 'var(--border)', margin: '14px 0 10px' }} />
+
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 6 }}>
+              Payment history
+            </div>
             {payments.length === 0 ? (
-              <div className="empty-state"><p>No payments recorded</p></div>
+              <div className="empty-state" style={{ padding: '18px 0 20px' }}><p>No payments recorded</p></div>
             ) : payments.map(p => {
               const head = heads.find(h => h.HeadID === p.HeadID)
               return (
