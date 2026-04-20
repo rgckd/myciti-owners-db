@@ -1,9 +1,33 @@
 import { useState, useEffect } from 'react'
 import { getAuditLog } from '../utils/api.js'
-import { formatDate } from '../utils/constants.js'
 
 const TABS_LIST = ['People','Sites','Owners','Agents','Payments','PaymentHeads','Transfers','Roles']
 const ACTIONS   = ['Create','Update','SoftDelete','Restore']
+
+const ACTION_COLORS = {
+  Create:     { bg: 'var(--paid-bg)',     color: 'var(--paid)' },
+  Update:     { bg: 'var(--tc-light)',    color: 'var(--tc-dark)' },
+  SoftDelete: { bg: 'var(--disputed-bg)', color: 'var(--disputed)' },
+  Restore:    { bg: 'var(--partial-bg)',  color: 'var(--partial)' },
+}
+
+function fmtWhen(ts) {
+  if (!ts) return '—'
+  return new Date(ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+function fmtVal(raw) {
+  if (!raw) return '—'
+  const s = String(raw)
+  // Try to pretty-print JSON objects (multi-field updates)
+  try {
+    const parsed = JSON.parse(s)
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return Object.entries(parsed).map(([k, v]) => `${k}: ${v || '—'}`).join(' · ')
+    }
+  } catch {}
+  return s.length > 60 ? s.slice(0, 60) + '…' : s
+}
 
 export default function AuditView() {
   const [logs, setLogs]       = useState([])
@@ -26,26 +50,19 @@ export default function AuditView() {
 
   const filtered = search
     ? logs.filter(l =>
-        String(l.RecordID).includes(search) ||
+        String(l.RecordName || l.RecordID).toLowerCase().includes(search.toLowerCase()) ||
         String(l.UserEmail).toLowerCase().includes(search.toLowerCase()) ||
         String(l.FieldName).toLowerCase().includes(search.toLowerCase()) ||
         String(l.NewValue).toLowerCase().includes(search.toLowerCase())
       )
     : logs
 
-  const ACTION_COLORS = {
-    Create:     { bg: 'var(--paid-bg)',     color: 'var(--paid)' },
-    Update:     { bg: 'var(--tc-light)',    color: 'var(--tc-dark)' },
-    SoftDelete: { bg: 'var(--disputed-bg)', color: 'var(--disputed)' },
-    Restore:    { bg: 'var(--partial-bg)',  color: 'var(--partial)' },
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 15, fontWeight: 600 }}>Audit log</h1>
         <input className="input" style={{ width: 200 }}
-          placeholder="Record ID, user, field…"
+          placeholder="Record, user, field…"
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && setSearch(searchInput)} />
@@ -85,28 +102,25 @@ export default function AuditView() {
                 const ac = ACTION_COLORS[log.Action] || { bg: 'var(--surface-3)', color: 'var(--ink-2)' }
                 return (
                   <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '8px', color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>
-                      {new Date(log.Timestamp).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
-                    </td>
-                    <td style={{ padding: '8px', color: 'var(--ink-2)' }}>
-                      {log.DisplayName || log.UserEmail}
-                    </td>
+                    <td style={{ padding: '8px', color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{fmtWhen(log.Timestamp)}</td>
+                    <td style={{ padding: '8px', color: 'var(--ink-2)' }}>{log.UserName || log.UserEmail}</td>
                     <td style={{ padding: '8px' }}>
-                      <span style={{
-                        fontSize: 10, fontWeight: 500, padding: '2px 7px',
-                        borderRadius: 999, background: ac.bg, color: ac.color
-                      }}>{log.Action}</span>
+                      <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 999, background: ac.bg, color: ac.color }}>
+                        {log.Action}
+                      </span>
                     </td>
                     <td style={{ padding: '8px', color: 'var(--ink-2)' }}>{log.Tab}</td>
-                    <td style={{ padding: '8px', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)' }}>
-                      {String(log.RecordID).slice(0, 12)}
+                    <td style={{ padding: '8px', color: 'var(--ink-2)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {log.RecordName || log.RecordID}
                     </td>
-                    <td style={{ padding: '8px', color: 'var(--ink-2)' }}>{log.FieldName || '—'}</td>
-                    <td style={{ padding: '8px', color: 'var(--ink-3)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {log.OldValue ? String(log.OldValue).slice(0, 30) : '—'}
+                    <td style={{ padding: '8px', color: 'var(--ink-2)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {log.FieldName || '—'}
                     </td>
-                    <td style={{ padding: '8px', color: 'var(--ink)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {log.NewValue ? String(log.NewValue).slice(0, 40) : '—'}
+                    <td style={{ padding: '8px', color: 'var(--ink-3)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {fmtVal(log.OldValue)}
+                    </td>
+                    <td style={{ padding: '8px', color: 'var(--ink)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {fmtVal(log.NewValue)}
                     </td>
                   </tr>
                 )
