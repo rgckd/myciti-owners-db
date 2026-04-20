@@ -391,17 +391,17 @@ function OwnerRow({ owner, role, onRefresh }) {
     try {
       await updatePerson({
         personId: p.PersonID,
-        fullName: form.fullName,
-        mobile1: form.mobile1,
-        mobile2: form.mobile2,
-        email: form.email,
-        address: form.address,
+        FullName: form.fullName,
+        Mobile1: form.mobile1,
+        Mobile2: form.mobile2,
+        Email: form.email,
+        Address: form.address,
       })
       await updateOwner({
         ownerId: owner.OwnerID,
-        membershipNo: form.membershipNo,
-        memberSince: form.memberSince,
-        nominatedContact: form.nominatedContact,
+        MembershipNo: form.membershipNo,
+        MemberSince: form.memberSince,
+        NominatedContact: form.nominatedContact,
       })
       setEditing(false)
       onRefresh()
