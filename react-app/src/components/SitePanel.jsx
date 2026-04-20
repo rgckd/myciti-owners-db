@@ -732,6 +732,7 @@ function DetailRow({ label, value, bold, mono }) {
 function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
   const head = heads.find(h => h.HeadID === payment.HeadID)
   const [editing, setEditing] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [form, setForm] = useState({
     amount: String(payment.Amount || ''),
     mode: payment.Mode || '',
@@ -763,12 +764,11 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
   }
 
   async function handleDelete() {
-    if (!window.confirm('Delete this payment record? This action is audit-logged.')) return
     setDeleting(true)
     try {
       await deletePayment(payment.PaymentID)
       onSaved()
-    } catch (e) { setError(e.message) }
+    } catch (e) { setError(e.message); setConfirmDelete(false) }
     finally { setDeleting(false) }
   }
 
@@ -779,8 +779,28 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
           <div style={{ fontWeight: 600, fontSize: 14 }}>{head?.HeadName || payment.HeadID}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
+
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {editing ? (
+          {confirmDelete ? (
+            <div style={{ padding: '12px', background: 'var(--disputed-bg)', borderRadius: 'var(--radius-md)', border: '1px solid var(--disputed)' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--disputed)', marginBottom: 4 }}>Delete this payment?</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-2)', marginBottom: 12 }}>
+                {formatCurrency(payment.Amount)} · {formatDate(payment.PaymentDate)} · {payment.Mode}<br />
+                This is audit-logged and cannot be undone.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>Cancel</button>
+                <button
+                  className="btn btn-sm"
+                  style={{ background: 'var(--disputed)', color: '#fff', borderColor: 'var(--disputed)' }}
+                  disabled={deleting}
+                  onClick={handleDelete}
+                >
+                  {deleting ? 'Deleting…' : 'Yes, delete'}
+                </button>
+              </div>
+            </div>
+          ) : editing ? (
             <>
               <EditField label="Amount (₹)" value={form.amount} onChange={v => setForm(f => ({ ...f, amount: v }))} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -813,29 +833,32 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
           )}
           {error && <div style={{ fontSize: 12, padding: '8px 12px', background: 'var(--disputed-bg)', color: 'var(--disputed)', borderRadius: 'var(--radius-md)' }}>{error}</div>}
         </div>
-        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
-          {canEditPayment && !editing && (
-            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--disputed)' }} disabled={deleting} onClick={handleDelete}>
-              {deleting ? 'Deleting…' : 'Delete'}
-            </button>
-          )}
-          <div style={{ flex: 1 }} />
-          {editing ? (
-            <>
-              <button className="btn btn-sm" onClick={() => setEditing(false)}>Cancel</button>
-              <button className="btn btn-primary btn-sm" disabled={saving} onClick={handleSave}>
-                {saving ? 'Saving…' : 'Save'}
+
+        {!confirmDelete && (
+          <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
+            {canEditPayment && !editing && (
+              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--disputed)' }} onClick={() => setConfirmDelete(true)}>
+                Delete
               </button>
-            </>
-          ) : (
-            <>
-              <button className="btn btn-sm" onClick={onClose}>Close</button>
-              {canEditPayment && (
-                <button className="btn btn-primary btn-sm" onClick={() => setEditing(true)}>Edit</button>
-              )}
-            </>
-          )}
-        </div>
+            )}
+            <div style={{ flex: 1 }} />
+            {editing ? (
+              <>
+                <button className="btn btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+                <button className="btn btn-primary btn-sm" disabled={saving} onClick={handleSave}>
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-sm" onClick={onClose}>Close</button>
+                {canEditPayment && (
+                  <button className="btn btn-primary btn-sm" onClick={() => setEditing(true)}>Edit</button>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
