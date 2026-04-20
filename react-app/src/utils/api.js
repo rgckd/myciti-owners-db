@@ -19,15 +19,12 @@ async function call(action, params = {}) {
   return data
 }
 
-let _resolvedPostUrl = ''
 async function resolvePostUrl() {
-  if (_resolvedPostUrl) return _resolvedPostUrl
   const payload = encodeURIComponent(JSON.stringify({ action: 'verifyMember', membershipId: '' }))
   const probe = await fetch(`${BASE_URL}?payload=${payload}`, { redirect: 'follow' })
   const url = new URL(probe.url)
   url.searchParams.delete('payload')
-  _resolvedPostUrl = url.toString()
-  return _resolvedPostUrl
+  return url.toString()
 }
 
 async function callPost(action, params = {}) {
@@ -40,6 +37,10 @@ async function callPost(action, params = {}) {
     body,
     redirect: 'follow',
   })
+  if (!res.ok) {
+    const raw = await res.text()
+    throw new Error(`Upload request failed (${res.status}). ${raw.slice(0, 180)}`)
+  }
   const text = await res.text()
   let data
   try { data = JSON.parse(text) } catch { throw new Error('Invalid response from server') }

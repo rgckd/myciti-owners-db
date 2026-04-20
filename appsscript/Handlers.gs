@@ -682,11 +682,18 @@
     const { folderId } = getUploadFolder({ type: folderType, entityId });
     const file = DriveApp.getFolderById(folderId).createFile(blob);
 
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    let shareWarning = '';
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {
+      // Some Workspace policies block public sharing; keep upload successful.
+      shareWarning = e && e.message ? String(e.message) : 'Could not set anyone-with-link sharing';
+    }
 
     return {
       fileId: file.getId(),
       fileName: file.getName(),
       url: file.getUrl(),
+      shareWarning,
     };
   }
