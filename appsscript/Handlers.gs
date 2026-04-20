@@ -664,3 +664,29 @@
 
     return { folderId: entityFolder.getId(), folderUrl: entityFolder.getUrl() };
   }
+
+  function uploadAttachment(params) {
+    const folderType = String(params.folderType || '').trim();
+    const entityId = String(params.entityId || '').trim();
+    const fileName = String(params.fileName || '').trim();
+    const mimeType = String(params.mimeType || 'application/octet-stream').trim();
+    const contentBase64 = String(params.contentBase64 || '').trim();
+
+    if (!folderType) throw new Error('folderType is required');
+    if (!entityId) throw new Error('entityId is required');
+    if (!fileName) throw new Error('fileName is required');
+    if (!contentBase64) throw new Error('contentBase64 is required');
+
+    const bytes = Utilities.base64Decode(contentBase64);
+    const blob = Utilities.newBlob(bytes, mimeType, fileName);
+    const { folderId } = getUploadFolder({ type: folderType, entityId });
+    const file = DriveApp.getFolderById(folderId).createFile(blob);
+
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    return {
+      fileId: file.getId(),
+      fileName: file.getName(),
+      url: file.getUrl(),
+    };
+  }

@@ -137,6 +137,14 @@ function handleRequest(e, method, params) {
 
       // ── FILE UPLOAD URL ──
       case 'getUploadFolder':   return jsonResponse(getUploadFolder(params));
+      case 'uploadAttachment': {
+        if (params.folderType === 'Payments') {
+          requireDomain(role,'payments','edit');
+        } else {
+          requireDomain(role,'owners','edit');
+        }
+        return jsonResponse(uploadAttachment(params));
+      }
 
       default: return jsonResponse({ error: `Unknown action: ${action}` }, 400);
     }

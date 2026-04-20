@@ -19,6 +19,34 @@ async function call(action, params = {}) {
   return data
 }
 
+let _resolvedPostUrl = ''
+async function resolvePostUrl() {
+  if (_resolvedPostUrl) return _resolvedPostUrl
+  const payload = encodeURIComponent(JSON.stringify({ action: 'verifyMember', membershipId: '' }))
+  const probe = await fetch(`${BASE_URL}?payload=${payload}`, { redirect: 'follow' })
+  const url = new URL(probe.url)
+  url.searchParams.delete('payload')
+  _resolvedPostUrl = url.toString()
+  return _resolvedPostUrl
+}
+
+async function callPost(action, params = {}) {
+  if (!BASE_URL) throw new Error('VITE_APPS_SCRIPT_URL not configured')
+  const postUrl = await resolvePostUrl()
+  const body = JSON.stringify({ action, token: _idToken, ...params })
+  const res = await fetch(postUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    redirect: 'follow',
+  })
+  const text = await res.text()
+  let data
+  try { data = JSON.parse(text) } catch { throw new Error('Invalid response from server') }
+  if (data.error) throw new Error(data.error)
+  return data
+}
+
 // ── Sites ──────────────────────────────────────────────────────────────────
 export const getSites       = (p={}) => call('getSites', p)
 export const getSite        = (siteId) => call('getSite', { siteId })
@@ -80,48 +108,28 @@ export const verifyMember = (membershipId) => call('verifyMember', { membershipI
 // ── Drive ──────────────────────────────────────────────────────────────────
 export const getUploadFolder = (type, entityId) => call('getUploadFolder', { type, entityId })
 
-function getDriveAccessToken() {
+function fileToBase64(file) {
   return new Promise((resolve, reject) => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    if (!window.google?.accounts?.oauth2) {
-      reject(new Error('Google OAuth2 library not loaded'))
-      return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      const comma = result.indexOf(',')
+      if (comma < 0) return reject(new Error('Could not encode file'))
+      resolve(result.slice(comma + 1))
     }
-    const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/drive.file',
-      callback: (resp) => {
-        if (resp.error) reject(new Error(resp.error_description || resp.error))
-        else resolve(resp.access_token)
-      },
-    })
-    client.requestAccessToken()
+    reader.onerror = () => reject(new Error('Could not read selected file'))
+    reader.readAsDataURL(file)
   })
 }
 
 export async function uploadFileToDrive(file, folderType, entityId) {
-  const [{ folderId }, accessToken] = await Promise.all([
-    getUploadFolder(folderType, entityId),
-    getDriveAccessToken(),
-  ])
-
-  const metadata = { name: file.name, parents: [folderId] }
-  const form = new FormData()
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
-  form.append('file', file)
-
-  const uploadRes = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
-    { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form }
-  )
-  if (!uploadRes.ok) throw new Error(`Drive upload failed: ${uploadRes.status}`)
-  const { id } = await uploadRes.json()
-
-  await fetch(`https://www.googleapis.com/drive/v3/files/${id}/permissions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+  const contentBase64 = await fileToBase64(file)
+  const result = await callPost('uploadAttachment', {
+    folderType,
+    entityId,
+    fileName: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    contentBase64,
   })
-
-  return `https://drive.google.com/file/d/${id}/view`
+  return result.url
 }
