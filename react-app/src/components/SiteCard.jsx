@@ -6,6 +6,8 @@ export default function SiteCard({ site, selected, onClick }) {
   const payStatus = site.payStatus === 'nocontact' ? 'unpaid' : site.payStatus
   const edgeColor = PHASE_COLORS[String(site.Phase)] || '#9CA3AF'
   const isFlagged = site.FlaggedForAttention === 'TRUE'
+  const hasNoPhone = !site.mobile
+  const hasFollowUp = Boolean(site.hasOpenFollowUp)
 
   return (
     <div
@@ -34,8 +36,10 @@ export default function SiteCard({ site, selected, onClick }) {
               Phase {site.Phase} · {site.SiteType || '—'}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {isFlagged && <span title="Flagged" style={{ fontSize: 12 }}>🚩</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {hasNoPhone && <SignalChip icon="📵" title="No phone" />}
+            {hasFollowUp && <SignalChip icon="🔔" title="Follow-up" />}
+            {isFlagged && <SignalChip icon="🚩" title="Issue" />}
             <PayBadge status={payStatus} />
           </div>
         </div>
@@ -52,7 +56,7 @@ export default function SiteCard({ site, selected, onClick }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             {site.membershipNo
               ? <span className="mono" style={{ color: 'var(--ink-2)' }}>{site.membershipNo}</span>
-              : <span>Non-member</span>}
+              : <span className="badge badge-nonmember">Non-member</span>}
           </div>
           {site.mobile
             ? <span className="mono" style={{ fontSize: 11, color: 'var(--ink-2)' }}>{site.mobile}</span>
@@ -60,6 +64,14 @@ export default function SiteCard({ site, selected, onClick }) {
         </div>
       </div>
     </div>
+  )
+}
+
+function SignalChip({ icon, title }) {
+  return (
+    <span className="card-signal" title={title} aria-label={title}>
+      <span aria-hidden="true">{icon}</span>
+    </span>
   )
 }
 

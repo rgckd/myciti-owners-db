@@ -74,6 +74,20 @@ a { text-decoration: none; color: inherit; }
 .badge-nocontact{ background: var(--nocontact-bg); color: var(--nocontact); }
 .badge-active   { background: var(--paid-bg); color: var(--paid); }
 .badge-member   { background: var(--tc-light); color: var(--tc-dark); }
+.badge-nonmember{ background: #F4EED6; color: #7A5A00; border: 1px solid #E2D39A; }
+
+.card-signal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  line-height: 1;
+}
 
 .card {
   background: var(--surface); border: 1px solid var(--border);
