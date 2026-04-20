@@ -16,7 +16,7 @@ export default function AuditView() {
   async function load() {
     setLoading(true)
     try {
-      const data = await getAuditLog({ tab: tabFilter, action: actionFilter, limit: 500 })
+      const data = await getAuditLog({ tab: tabFilter, filterAction: actionFilter, limit: 500 })
       setLogs(data)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }

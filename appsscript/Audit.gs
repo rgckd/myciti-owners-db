@@ -62,7 +62,7 @@ function getAuditLog(params) {
   });
 
   if (params.tab)        rows = rows.filter(r => r.Tab === params.tab);
-  if (params.action)     rows = rows.filter(r => r.Action === params.action);
+  if (params.filterAction) rows = rows.filter(r => r.Action === params.filterAction);
   if (params.userEmail)  rows = rows.filter(r => r.UserEmail === params.userEmail);
   if (params.recordId)   rows = rows.filter(r => r.RecordID === params.recordId);
   if (params.dateFrom)   rows = rows.filter(r => r.Timestamp >= params.dateFrom);
