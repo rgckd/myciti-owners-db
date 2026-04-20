@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updatePerson, updateOwner, createOwner, getPeople, createCallLog, markFollowUpDone } from '../utils/api.js'
+import { useState, useEffect, useCallback } from 'react'
+import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, createCallLog, markFollowUpDone, uploadFileToDrive } from '../utils/api.js'
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
@@ -15,7 +15,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [loading, setLoading] = useState(true)
   const [showPayment, setShowPayment] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
-  const [showAddCoOwner, setShowAddCoOwner] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
   const [showFlagModal, setShowFlagModal] = useState(false)
   const [pendingFlag, setPendingFlag] = useState(null)
   const [flagComment, setFlagComment] = useState('')
@@ -186,7 +186,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
 
             {/* Current owners */}
             <div>
-              <div className="label">Current owner{currentOwners.length > 1 ? 's' : ''}</div>
+              <div className="label">Current owner(s)</div>
               {currentOwners.length === 0 ? (
                 <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>No owner recorded</div>
               ) : currentOwners.map(o => (
@@ -197,7 +197,6 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
                   <button className="btn btn-ghost btn-sm" onClick={() => setShowTransfer(true)}>
                     Transfer ownership
                   </button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setShowAddCoOwner(true)}>+ Add co-owner</button>
                 </div>
               )}
             </div>
@@ -329,16 +328,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
         )}
 
         {tab === 'Attachments' && (
-          <div>
-            {!site.AttachmentURLs && (
-              <div className="empty-state"><p>No attachments yet</p></div>
-            )}
-            {canEdit(role, 'owners') && (
-              <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }}>
-                + Upload file
-              </button>
-            )}
-          </div>
+          <AttachmentsTab site={site} role={role} onUpload={() => setShowUpload(true)} />
         )}
       </div>
 
@@ -373,11 +363,12 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
         />
       )}
 
-      {showAddCoOwner && (
-        <AddCoOwnerModal
+      {showUpload && (
+        <UploadAttachmentModal
           siteId={siteId}
-          onClose={() => setShowAddCoOwner(false)}
-          onSaved={() => { setShowAddCoOwner(false); load() }}
+          site={site}
+          onClose={() => setShowUpload(false)}
+          onSaved={() => { setShowUpload(false); load() }}
         />
       )}
     </PanelShell>
@@ -456,14 +447,14 @@ function OwnerRow({ owner, role, onRefresh }) {
         border: '1px solid var(--tc)', background: 'var(--surface-2)', marginBottom: 8
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <EditField label="Full name"    value={form.fullName}        onChange={v => set('fullName', v)} />
+          <EditField label="Full name(s)" value={form.fullName}        onChange={v => set('fullName', v)} />
           <EditField label="Mobile"       value={form.mobile1}         onChange={v => set('mobile1', v)} />
           <EditField label="Alt mobile"   value={form.mobile2}         onChange={v => set('mobile2', v)} />
           <EditField label="Email"        value={form.email}           onChange={v => set('email', v)} />
           <EditField label="Address"      value={form.address}         onChange={v => set('address', v)} />
           <EditField label="Membership #" value={form.membershipNo}    onChange={v => set('membershipNo', v)} />
           <EditField label="Member since" value={form.memberSince}     onChange={v => set('memberSince', v)} type="date" />
-          <EditField label="Contact name" value={form.nominatedContact} onChange={v => set('nominatedContact', v)} />
+          <EditField label="Primary contact" value={form.nominatedContact} onChange={v => set('nominatedContact', v)} />
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
           <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
@@ -630,86 +621,127 @@ function FlagModal({ flagging, comment, saving, onChange, onConfirm, onCancel })
   )
 }
 
-function AddCoOwnerModal({ siteId, onClose, onSaved }) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [membershipNo, setMembershipNo] = useState('')
-  const [memberSince, setMemberSince] = useState('')
-  const [searching, setSearching] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const debounce = useRef(null)
+function parseAttachments(raw) {
+  if (!raw) return []
+  try {
+    const p = JSON.parse(raw)
+    return Array.isArray(p) ? p : []
+  } catch { return [] }
+}
 
-  function handleQuery(v) {
-    setQuery(v)
-    setSelected(null)
-    clearTimeout(debounce.current)
-    if (v.trim().length < 2) { setResults([]); return }
-    debounce.current = setTimeout(async () => {
-      setSearching(true)
-      try { setResults(await getPeople({ q: v.trim() })) }
-      catch { setResults([]) }
-      finally { setSearching(false) }
-    }, 350)
-  }
+function AttachmentsTab({ site, role, onUpload }) {
+  const items = parseAttachments(site.AttachmentURLs)
+  return (
+    <div>
+      {items.length === 0 ? (
+        <div className="empty-state"><p>No attachments yet</p></div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 20 }}>{item.type === 'image' ? '🖼' : '📄'}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</div>
+                {item.uploadedAt && <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{item.uploadedAt}</div>}
+              </div>
+              <a href={item.url} target="_blank" rel="noreferrer"
+                style={{ fontSize: 12, color: 'var(--tc)', textDecoration: 'none' }}>Open ↗</a>
+            </div>
+          ))}
+        </div>
+      )}
+      {canEdit(role, 'owners') && (
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={onUpload}>
+          + Upload file
+        </button>
+      )}
+    </div>
+  )
+}
+
+async function compressImage(file, maxPx = 1200, quality = 0.82) {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = e => {
+      const img = new Image()
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+        const w = Math.round(img.width * scale)
+        const h = Math.round(img.height * scale)
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        canvas.toBlob(blob => resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' })), 'image/jpeg', quality)
+      }
+      img.src = e.target.result
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+function UploadAttachmentModal({ siteId, site, onClose, onSaved }) {
+  const [file, setFile] = useState(null)
+  const [label, setLabel] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
 
   async function handleSave() {
-    if (!selected) return
-    setSaving(true); setError('')
+    if (!file) return
+    setUploading(true); setError('')
     try {
-      await createOwner({ siteId, personId: selected.PersonID, membershipNo, memberSince })
+      let uploadFile = file
+      if (file.type.startsWith('image/')) {
+        uploadFile = await compressImage(file)
+      }
+      const url = await uploadFileToDrive(uploadFile, 'Sites', siteId)
+      const current = parseAttachments(site.AttachmentURLs)
+      current.push({
+        label: label.trim() || file.name,
+        url,
+        type: file.type.startsWith('image/') ? 'image' : 'pdf',
+        uploadedAt: new Date().toISOString().slice(0, 10),
+      })
+      await updateSite({ siteId, AttachmentURLs: JSON.stringify(current) })
       onSaved()
-    } catch (e) { setError(e.message || 'Save failed') }
-    finally { setSaving(false) }
+    } catch (e) { setError(e.message || 'Upload failed') }
+    finally { setUploading(false) }
   }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
-      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 400, border: '1px solid var(--border)' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 380, border: '1px solid var(--border)' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-          Add co-owner
+          Upload attachment
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label className="label">Search person *</label>
-            <input className="input" placeholder="Name or phone…" value={query} onChange={e => handleQuery(e.target.value)} autoFocus />
-            {searching && <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>Searching…</div>}
-            {results.length > 0 && !selected && (
-              <div style={{ marginTop: 4, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', maxHeight: 180, overflowY: 'auto' }}>
-                {results.slice(0, 10).map(p => (
-                  <div key={p.PersonID} onClick={() => { setSelected(p); setQuery(p.FullName); setResults([]) }}
-                    style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
-                    onMouseLeave={e => e.currentTarget.style.background = ''}>
-                    <div style={{ fontWeight: 500 }}>{p.FullName}</div>
-                    <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{p.Mobile1 || p.Email || p.PersonID}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {selected && (
-              <div style={{ marginTop: 4, fontSize: 11, color: 'var(--paid)' }}>
-                ✓ Selected: {selected.FullName}
-                <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8, fontSize: 10 }} onClick={() => { setSelected(null); setQuery('') }}>Change</button>
+            <label className="label">File (photo or PDF) *</label>
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              className="input"
+              style={{ padding: '6px 8px' }}
+              onChange={e => { setFile(e.target.files[0] || null); setError('') }}
+            />
+            {file && (
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>
+                {file.name} · {(file.size / 1024).toFixed(0)} KB
+                {file.type.startsWith('image/') && ' · will be compressed'}
               </div>
             )}
           </div>
           <div>
-            <label className="label">Membership #</label>
-            <input className="input" placeholder="MC…" value={membershipNo} onChange={e => setMembershipNo(e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Member since</label>
-            <input className="input" type="date" value={memberSince} onChange={e => setMemberSince(e.target.value)} />
+            <label className="label">Label</label>
+            <input className="input" placeholder="e.g. ID proof, Site photo…" value={label} onChange={e => setLabel(e.target.value)} />
           </div>
           {error && <div style={{ fontSize: 12, padding: '8px 12px', background: 'var(--disputed-bg)', color: 'var(--disputed)', borderRadius: 'var(--radius-md)' }}>{error}</div>}
+          {uploading && <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Uploading to Google Drive… this may take a moment</div>}
         </div>
         <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={!selected || saving} onClick={handleSave}>
-            {saving ? 'Adding…' : 'Add co-owner'}
+          <button className="btn" onClick={onClose} disabled={uploading}>Cancel</button>
+          <button className="btn btn-primary" disabled={!file || uploading} onClick={handleSave}>
+            {uploading ? 'Uploading…' : 'Upload'}
           </button>
         </div>
       </div>

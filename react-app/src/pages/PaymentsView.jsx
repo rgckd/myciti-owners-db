@@ -242,7 +242,7 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
     e.target.value = ''
     setUploading(true); setError('')
     try {
-      const url = await uploadFileToDrive(file, payment.PaymentID)
+      const url = await uploadFileToDrive(file, 'Payments', payment.PaymentID)
       setProofUrl(url)
     } catch (err) { setError(err.message) }
     finally { setUploading(false) }

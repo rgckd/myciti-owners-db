@@ -63,7 +63,7 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
     e.target.value = ''
     setUploading(true); setError('')
     try {
-      const url = await uploadFileToDrive(file, selectedSiteId || 'new')
+      const url = await uploadFileToDrive(file, 'Payments', selectedSiteId || 'new')
       setProofUrl(url)
     } catch (err) { setError(err.message) }
     finally { setUploading(false) }

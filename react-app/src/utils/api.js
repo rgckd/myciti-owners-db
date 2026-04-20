@@ -99,9 +99,9 @@ function getDriveAccessToken() {
   })
 }
 
-export async function uploadFileToDrive(file, paymentId) {
+export async function uploadFileToDrive(file, folderType, entityId) {
   const [{ folderId }, accessToken] = await Promise.all([
-    getUploadFolder('Payments', paymentId),
+    getUploadFolder(folderType, entityId),
     getDriveAccessToken(),
   ])
 
