@@ -33,7 +33,7 @@ export default function SiteRegistry() {
   const [statusFilter, setStatusFilter] = useState('All')
   const [memberFilter, setMemberFilter] = useState('all') // 'all' | 'members' | 'non-members'
   const [payFilter, setPayFilter] = useState('')          // '' | 'paid' | 'partial' | 'unpaid'
-  const [flaggedFilter, setFlaggedFilter] = useState(false)
+  const [flagFilters, setFlagFilters] = useState({ noPhone: false, followUp: false, issue: false })
 
   // Sort (up to 3 levels)
   const [sorts, setSorts] = useState([{ field: 'Phase', dir: 'asc' }, { field: 'SiteNo', dir: 'asc' }])
@@ -63,7 +63,12 @@ export default function SiteRegistry() {
     if (memberFilter === 'members') list = list.filter(s => !!s.membershipNo)
     if (memberFilter === 'non-members') list = list.filter(s => !s.membershipNo)
     if (payFilter) list = list.filter(s => s.payStatus === payFilter)
-    if (flaggedFilter) list = list.filter(s => s.FlaggedForAttention === 'TRUE' || s.ownerFlagged === true)
+    const anyFlagFilter = flagFilters.noPhone || flagFilters.followUp || flagFilters.issue
+    if (anyFlagFilter) list = list.filter(s =>
+      (flagFilters.noPhone && !s.mobile) ||
+      (flagFilters.followUp && s.hasOpenFollowUp) ||
+      (flagFilters.issue && (s.FlaggedForAttention === 'TRUE' || s.ownerFlagged === true))
+    )
     if (search) {
       const q = search.toLowerCase()
       list = list.filter(s =>
@@ -89,7 +94,11 @@ export default function SiteRegistry() {
       return 0
     })
     return list
-  }, [sites, phase, search, memberFilter, payFilter, flaggedFilter, sorts])
+  }, [sites, phase, search, memberFilter, payFilter, flagFilters, sorts])
+
+  const flaggedCount = useMemo(() =>
+    sites.filter(s => !s.mobile || s.hasOpenFollowUp || s.FlaggedForAttention === 'TRUE' || s.ownerFlagged).length,
+  [sites])
 
   function addSort() {
     if (sorts.length >= 3) return
@@ -114,7 +123,7 @@ export default function SiteRegistry() {
           padding: '12px 20px', borderBottom: '1px solid var(--border)',
           display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0
         }}>
-          <h1 style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', flex: 1 }}>Site registry</h1>
+          <h1 style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', flex: 1 }}>Site Registry</h1>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             background: 'var(--surface-2)', border: '1px solid var(--border)',
@@ -151,7 +160,7 @@ export default function SiteRegistry() {
             {[
               { label: 'Total sites', value: stats.totalSites },
               { label: 'Members', value: stats.totalMembers },
-              { label: 'Flagged', value: (stats.flaggedSites || 0) + (stats.flaggedOwners || 0) },
+              { label: 'Flagged', value: flaggedCount },
             ].map((s, i) => (
               <div key={i} style={{
                 padding: '10px 20px', borderRight: '1px solid var(--border)'
@@ -169,12 +178,12 @@ export default function SiteRegistry() {
           display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0
         }}>
           {/* Phase */}
-          {['All', '1', '2'].map(p => (
+          {['1', '2'].map(p => (
             <button key={p}
               className={`btn btn-sm ${phase === p ? '' : 'btn-ghost'}`}
               style={phase === p ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
-              onClick={() => setPhase(p)}
-            >{p === 'All' ? 'All phases' : `Phase ${p}`}</button>
+              onClick={() => setPhase(cur => cur === p ? 'All' : p)}
+            >{`Phase ${p}`}</button>
           ))}
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
           {/* Membership — toggle on/off */}
@@ -187,7 +196,7 @@ export default function SiteRegistry() {
           ))}
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
           {/* Payment status */}
-          {[['paid','Paid'],['partial','Default'],['unpaid','Unpaid']].map(([val, label]) => (
+          {[['paid','Paid'],['unpaid','Dues'],['partial','Default']].map(([val, label]) => (
             <button key={val}
               className={`btn btn-sm ${payFilter === val ? '' : 'btn-ghost'}`}
               style={payFilter === val ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
@@ -195,12 +204,18 @@ export default function SiteRegistry() {
             >{label}</button>
           ))}
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-          {/* Flagged */}
-          <button
-            className={`btn btn-sm ${flaggedFilter ? '' : 'btn-ghost'}`}
-            style={flaggedFilter ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
-            onClick={() => setFlaggedFilter(f => !f)}
-          >🚩 Flagged</button>
+          {/* Flagged sub-filters */}
+          {[
+            ['noPhone',  '📵 No phone'],
+            ['followUp', '🔔 Follow-up'],
+            ['issue',    '🚩 Issue'],
+          ].map(([key, label]) => (
+            <button key={key}
+              className={`btn btn-sm ${flagFilters[key] ? '' : 'btn-ghost'}`}
+              style={flagFilters[key] ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
+              onClick={() => setFlagFilters(f => ({ ...f, [key]: !f[key] }))}
+            >{label}</button>
+          ))}
         </div>
 
         {/* Sort controls */}
@@ -238,6 +253,9 @@ export default function SiteRegistry() {
           {sorts.length < 3 && (
             <button className="btn btn-ghost btn-sm" onClick={addSort} style={{ fontSize: 12 }}>+ Add level</button>
           )}
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-3)' }}>
+            {filtered.length} site{filtered.length !== 1 ? 's' : ''}
+          </span>
         </div>
 
         {/* Grid */}

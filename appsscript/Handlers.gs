@@ -18,6 +18,13 @@
     const people   = sheetToObjects(CONFIG.TABS.PEOPLE);
     const payments = sheetToObjects(CONFIG.TABS.PAYMENTS);
     const heads    = sheetToObjects(CONFIG.TABS.PAYMENT_HEADS).filter(h => h.IsActive === 'TRUE');
+    const callLog  = sheetToObjects(CONFIG.TABS.CALL_LOG);
+    const openFollowUpSites = new Set();
+    callLog.forEach(l => {
+      if (l.FollowUpDone !== 'TRUE' && l.FollowUpAction && String(l.FollowUpAction).trim() !== '') {
+        openFollowUpSites.add(l.SiteID);
+      }
+    });
     const peopleMap = Object.fromEntries(people.map(p => [p.PersonID, p]));
 
     // Build a payment lookup: siteId -> { headId -> totalPaid }
@@ -69,6 +76,7 @@
         mobile:       person ? (person.Mobile1 || person.Mobile2 || null) : null,
         ownerStatus:  firstOwner ? firstOwner.Status : null,
         ownerFlagged: firstOwner ? (firstOwner.FlaggedForAttention === 'TRUE') : false,
+        hasOpenFollowUp: openFollowUpSites.has(site.SiteID),
         payStatus,
       };
     });
