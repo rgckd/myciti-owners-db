@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, createCallLog, markFollowUpDone, uploadFileToDrive } from '../utils/api.js'
-import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput } from '../utils/constants.js'
+import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, updatePayment, deletePayment, createCallLog, markFollowUpDone, uploadFileToDrive } from '../utils/api.js'
+import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
 
@@ -20,6 +20,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [pendingFlag, setPendingFlag] = useState(null)
   const [flagComment, setFlagComment] = useState('')
   const [flagSaving, setFlagSaving] = useState(false)
+  const [selectedPayment, setSelectedPayment] = useState(null)
   const [noteText, setNoteText] = useState('')
   const [followup, setFollowup] = useState('')
   const [savingNote, setSavingNote] = useState(false)
@@ -249,29 +250,23 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
             ) : payments.map(p => {
               const head = heads.find(h => h.HeadID === p.HeadID)
               return (
-                <div key={p.PaymentID} style={{
-                  padding: '10px 0', borderBottom: '1px solid var(--border)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500 }}>{head?.HeadName || p.HeadID}</div>
-                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
-                        {formatDate(p.PaymentDate)} · {p.Mode || '—'} · {p.ReceiptNo ? `#${p.ReceiptNo}` : ''}
-                      </div>
+                <div key={p.PaymentID}
+                  onClick={() => setSelectedPayment(p)}
+                  style={{
+                    padding: '8px 0', borderBottom: '1px solid var(--border)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    cursor: 'pointer'
+                  }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {head?.HeadName || p.HeadID}
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--paid)' }}>
-                        {formatCurrency(p.Amount)}
-                      </div>
-                      {p.BankRef && (
-                        <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>
-                          {p.BankRef}
-                        </div>
-                      )}
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                      {formatDate(p.PaymentDate)} · {p.Mode || '—'}{p.ReceiptNo ? ` · #${p.ReceiptNo}` : ''}
                     </div>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>
-                    Recorded by {p.RecordedBy} · {formatDate(p.RecordedAt)}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--paid)', flexShrink: 0, marginLeft: 8 }}>
+                    {formatCurrency(p.Amount)}
                   </div>
                 </div>
               )
@@ -368,6 +363,16 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
           site={site}
           onClose={() => setShowUpload(false)}
           onSaved={() => { setShowUpload(false); load() }}
+        />
+      )}
+
+      {selectedPayment && (
+        <PaymentDetailModal
+          payment={selectedPayment}
+          heads={heads}
+          role={role}
+          onClose={() => setSelectedPayment(null)}
+          onSaved={() => { setSelectedPayment(null); load() }}
         />
       )}
     </PanelShell>
@@ -684,50 +689,154 @@ function InfoRow({ label, value }) {
 
 function DuesRow({ due }) {
   const statusColors = {
-    paid: { bg: 'var(--paid-bg)', color: 'var(--paid)' },
-    partial: { bg: 'var(--partial-bg)', color: 'var(--partial)' },
-    unpaid: { bg: 'var(--partial-bg)', color: 'var(--partial)' },
-    size_missing: { bg: 'var(--surface-3)', color: 'var(--ink-2)' },
+    paid:         { color: 'var(--paid)' },
+    partial:      { color: 'var(--partial)' },
+    unpaid:       { color: 'var(--partial)' },
+    size_missing: { color: 'var(--ink-3)' },
   }
-  const { bg, color } = statusColors[due.status] || statusColors.unpaid
+  const { color } = statusColors[due.status] || statusColors.unpaid
 
   return (
-    <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 500 }}>{due.headName}</div>
-          <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
-            {due.amountType === 'PerSqft' ? 'Per sq ft' : 'Flat fee'}
-          </div>
+    <div style={{ padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: 12, fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 8 }}>
+          {due.headName}
         </div>
-        <div style={{ textAlign: 'right' }}>
-          {due.sizeMissing ? (
-            <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Size required</span>
+        {due.sizeMissing ? (
+          <span style={{ fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>Size needed</span>
+        ) : (
+          <div style={{ flexShrink: 0, textAlign: 'right' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color }}>{formatCurrency(due.outstanding)} due</span>
+            <span style={{ fontSize: 11, color: 'var(--ink-3)', marginLeft: 5 }}>of {formatCurrency(due.expected)}</span>
+          </div>
+        )}
+      </div>
+      {!due.sizeMissing && due.expected > 0 && (
+        <div style={{ marginTop: 4, height: 2, borderRadius: 1, background: 'var(--surface-3)', overflow: 'hidden' }}>
+          <div style={{ width: `${Math.min(100, (due.paid / due.expected) * 100)}%`, height: '100%', background: color }} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DetailRow({ label, value, bold, mono }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+      <span style={{ color: 'var(--ink-3)', minWidth: 84, flexShrink: 0 }}>{label}</span>
+      <span style={{ color: 'var(--ink)', fontWeight: bold ? 600 : 400, fontFamily: mono ? 'var(--mono)' : undefined }}>{value || '—'}</span>
+    </div>
+  )
+}
+
+function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
+  const head = heads.find(h => h.HeadID === payment.HeadID)
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({
+    amount: String(payment.Amount || ''),
+    mode: payment.Mode || '',
+    date: toDateInput(payment.PaymentDate),
+    receiptNo: payment.ReceiptNo || '',
+    bankRef: payment.BankRef || '',
+    proofUrl: payment.ProofURL || '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState('')
+  const canEditPayment = canEdit(role, 'payments')
+
+  async function handleSave() {
+    setSaving(true); setError('')
+    try {
+      await updatePayment({
+        paymentId: payment.PaymentID,
+        Amount: Number(form.amount),
+        Mode: form.mode,
+        PaymentDate: form.date,
+        ReceiptNo: form.receiptNo,
+        BankRef: form.bankRef,
+        ProofURL: form.proofUrl,
+      })
+      onSaved()
+    } catch (e) { setError(e.message) }
+    finally { setSaving(false) }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm('Delete this payment record? This action is audit-logged.')) return
+    setDeleting(true)
+    try {
+      await deletePayment(payment.PaymentID)
+      onSaved()
+    } catch (e) { setError(e.message) }
+    finally { setDeleting(false) }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 380, border: '1px solid var(--border)' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>{head?.HeadName || payment.HeadID}</div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {editing ? (
+            <>
+              <EditField label="Amount (₹)" value={form.amount} onChange={v => setForm(f => ({ ...f, amount: v }))} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, color: 'var(--ink-3)', minWidth: 80, textAlign: 'right' }}>Mode</span>
+                <select className="input" style={{ flex: 1, padding: '4px 8px', fontSize: 12 }} value={form.mode} onChange={e => setForm(f => ({ ...f, mode: e.target.value }))}>
+                  {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <EditField label="Date" value={form.date} onChange={v => setForm(f => ({ ...f, date: v }))} type="date" />
+              <EditField label="Receipt #" value={form.receiptNo} onChange={v => setForm(f => ({ ...f, receiptNo: v }))} />
+              <EditField label="Bank ref" value={form.bankRef} onChange={v => setForm(f => ({ ...f, bankRef: v }))} />
+              <EditField label="Proof URL" value={form.proofUrl} onChange={v => setForm(f => ({ ...f, proofUrl: v }))} />
+            </>
           ) : (
             <>
-              <div style={{ fontSize: 13, fontWeight: 600, color }}>
-                {formatCurrency(due.outstanding)} due
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                {formatCurrency(due.paid)} of {formatCurrency(due.expected)} paid
-              </div>
+              <DetailRow label="Amount" value={formatCurrency(payment.Amount)} bold />
+              <DetailRow label="Date" value={formatDate(payment.PaymentDate)} />
+              <DetailRow label="Mode" value={payment.Mode} />
+              {payment.ReceiptNo && <DetailRow label="Receipt #" value={`#${payment.ReceiptNo}`} />}
+              {payment.BankRef && <DetailRow label="Bank ref" value={payment.BankRef} mono />}
+              {payment.ProofURL && (
+                <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+                  <span style={{ color: 'var(--ink-3)', minWidth: 84, flexShrink: 0 }}>Proof</span>
+                  <a href={payment.ProofURL} target="_blank" rel="noreferrer" style={{ color: 'var(--tc)', textDecoration: 'none' }}>View ↗</a>
+                </div>
+              )}
+              <DetailRow label="Recorded by" value={payment.RecordedBy} />
+              <DetailRow label="Recorded at" value={formatDate(payment.RecordedAt)} />
+            </>
+          )}
+          {error && <div style={{ fontSize: 12, padding: '8px 12px', background: 'var(--disputed-bg)', color: 'var(--disputed)', borderRadius: 'var(--radius-md)' }}>{error}</div>}
+        </div>
+        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
+          {canEditPayment && !editing && (
+            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--disputed)' }} disabled={deleting} onClick={handleDelete}>
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+          )}
+          <div style={{ flex: 1 }} />
+          {editing ? (
+            <>
+              <button className="btn btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+              <button className="btn btn-primary btn-sm" disabled={saving} onClick={handleSave}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-sm" onClick={onClose}>Close</button>
+              {canEditPayment && (
+                <button className="btn btn-primary btn-sm" onClick={() => setEditing(true)}>Edit</button>
+              )}
             </>
           )}
         </div>
       </div>
-      {/* Progress bar */}
-      {!due.sizeMissing && due.expected > 0 && (
-        <div style={{
-          marginTop: 8, height: 4, borderRadius: 2,
-          background: 'var(--surface-3)', overflow: 'hidden'
-        }}>
-          <div style={{
-            width: `${Math.min(100, (due.paid / due.expected) * 100)}%`,
-            height: '100%', background: color, borderRadius: 2,
-            transition: 'width 0.3s'
-          }} />
-        </div>
-      )}
     </div>
   )
 }

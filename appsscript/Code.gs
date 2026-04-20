@@ -118,6 +118,7 @@ function handleRequest(e, method, params) {
       case 'getPayments':       requireDomain(role,'payments','view'); return jsonResponse(getPayments(params));
       case 'createPayment':     requireDomain(role,'payments','edit'); return jsonResponse(createPayment(params, caller));
       case 'updatePayment':     requireDomain(role,'payments','edit'); return jsonResponse(updatePayment(params, caller, role));
+      case 'deletePayment':     requireDomain(role,'payments','edit'); return jsonResponse(softDelete(CONFIG.TABS.PAYMENTS,'PaymentID',params.paymentId,caller));
       case 'getPaymentHeads':   requireDomain(role,'payments','view'); return jsonResponse(getPaymentHeads());
       case 'createPaymentHead': requireAdmin(role);                    return jsonResponse(createPaymentHead(params, caller));
       case 'updatePaymentHead': requireAdmin(role);                    return jsonResponse(updatePaymentHead(params, caller));
