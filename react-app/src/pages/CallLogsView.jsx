@@ -260,9 +260,6 @@ function CallLogModal({ log, canAct, assignableUsers, onClose, onSaved }) {
     finally { setMarking(false) }
   }
 
-  return (
-    <div style={{
-
   async function handleReopen() {
     setReopening(true); setError('')
     try {
@@ -271,6 +268,9 @@ function CallLogModal({ log, canAct, assignableUsers, onClose, onSaved }) {
     } catch (e) { setError(e.message) }
     finally { setReopening(false) }
   }
+
+  return (
+    <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 1000, padding: 20
