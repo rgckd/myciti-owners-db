@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, createCallLog, markFollowUpDone, uploadFileToDrive } from '../utils/api.js'
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
@@ -396,6 +396,22 @@ function OwnerRow({ owner, role, onRefresh }) {
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploadingIdProof, setUploadingIdProof] = useState(false)
+  const photoInputRef = useRef(null)
+  const idProofInputRef = useRef(null)
+
+  function parseIdProofUrls(raw) {
+    if (!raw) return []
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.filter(Boolean)
+    } catch (_) {}
+    return String(raw)
+      .split(/[\n,]+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+  }
 
   function startEdit(e) {
     e.stopPropagation()
@@ -407,6 +423,8 @@ function OwnerRow({ owner, role, onRefresh }) {
       mobile2: p.Mobile2 || '',
       email: p.Email || '',
       address: p.Address || '',
+      photoUrl: p.PhotoURL || '',
+      idProofUrls: p.IDProofURLs || '',
       membershipNo: owner.MembershipNo || '',
       memberSince: toDateInput(owner.MemberSince),
       nominatedContact: owner.NominatedContact || '',
@@ -415,6 +433,36 @@ function OwnerRow({ owner, role, onRefresh }) {
   }
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })) }
+
+  async function handlePhotoUpload(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !p.PersonID) return
+    setSaveError('')
+    setUploadingPhoto(true)
+    try {
+      const url = await uploadFileToDrive(file, 'People', p.PersonID)
+      set('photoUrl', url)
+    } catch (err) {
+      setSaveError(err.message || 'Photo upload failed')
+    } finally { setUploadingPhoto(false) }
+  }
+
+  async function handleIdProofUpload(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !p.PersonID) return
+    setSaveError('')
+    setUploadingIdProof(true)
+    try {
+      const url = await uploadFileToDrive(file, 'People', p.PersonID)
+      const current = parseIdProofUrls(form.idProofUrls)
+      const next = [...current, url]
+      set('idProofUrls', JSON.stringify(next))
+    } catch (err) {
+      setSaveError(err.message || 'ID proof upload failed')
+    } finally { setUploadingIdProof(false) }
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -427,6 +475,8 @@ function OwnerRow({ owner, role, onRefresh }) {
         Mobile2: form.mobile2,
         Email: form.email,
         Address: form.address,
+        PhotoURL: form.photoUrl,
+        IDProofURLs: form.idProofUrls,
       })
       await updateOwner({
         ownerId: owner.OwnerID,
@@ -453,6 +503,63 @@ function OwnerRow({ owner, role, onRefresh }) {
           <EditField label="Alt mobile"   value={form.mobile2}         onChange={v => set('mobile2', v)} />
           <EditField label="Email"        value={form.email}           onChange={v => set('email', v)} />
           <EditField label="Address"      value={form.address}         onChange={v => set('address', v)} />
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--ink-3)', minWidth: 80, textAlign: 'right', marginTop: 6 }}>Photo</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  type="button"
+                  disabled={uploadingPhoto || uploadingIdProof}
+                  onClick={() => photoInputRef.current?.click()}
+                >
+                  {uploadingPhoto ? 'Uploading photo…' : 'Upload photo'}
+                </button>
+                {form.photoUrl && (
+                  <a href={form.photoUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--tc)', textDecoration: 'none' }}>
+                    Open ↗
+                  </a>
+                )}
+              </div>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handlePhotoUpload}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--ink-3)', minWidth: 80, textAlign: 'right', marginTop: 6 }}>ID proof</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  type="button"
+                  disabled={uploadingPhoto || uploadingIdProof}
+                  onClick={() => idProofInputRef.current?.click()}
+                >
+                  {uploadingIdProof ? 'Uploading ID…' : 'Upload ID proof'}
+                </button>
+                {parseIdProofUrls(form.idProofUrls).map((url, i) => (
+                  <a key={`${url}-${i}`} href={url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--tc)', textDecoration: 'none' }}>
+                    ID {i + 1} ↗
+                  </a>
+                ))}
+              </div>
+              <input
+                ref={idProofInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                style={{ display: 'none' }}
+                onChange={handleIdProofUpload}
+              />
+            </div>
+          </div>
+
           <EditField label="Membership #" value={form.membershipNo}    onChange={v => set('membershipNo', v)} />
           <EditField label="Member since" value={form.memberSince}     onChange={v => set('memberSince', v)} type="date" />
           <EditField label="Primary contact" value={form.nominatedContact} onChange={v => set('nominatedContact', v)} />
