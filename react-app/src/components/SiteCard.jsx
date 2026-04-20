@@ -58,9 +58,9 @@ export default function SiteCard({ site, selected, onClick }) {
               ? <span className="mono" style={{ color: 'var(--ink-2)' }}>{site.membershipNo}</span>
               : <span className="badge badge-nonmember">Non-member</span>}
           </div>
-          {site.mobile
-            ? <span className="mono" style={{ fontSize: 11, color: 'var(--ink-2)' }}>{site.mobile}</span>
-            : <span className="badge badge-nocontact" style={{ fontSize: 10 }}>No contact</span>}
+          {site.mobile && (
+            <span className="mono" style={{ fontSize: 11, color: 'var(--ink-2)' }}>{site.mobile}</span>
+          )}
         </div>
       </div>
     </div>

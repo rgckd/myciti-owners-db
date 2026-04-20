@@ -74,7 +74,7 @@ a { text-decoration: none; color: inherit; }
 .badge-nocontact{ background: var(--nocontact-bg); color: var(--nocontact); }
 .badge-active   { background: var(--paid-bg); color: var(--paid); }
 .badge-member   { background: var(--tc-light); color: var(--tc-dark); }
-.badge-nonmember{ background: #F4EED6; color: #7A5A00; border: 1px solid #E2D39A; }
+.badge-nonmember{ background: var(--disputed-bg); color: var(--disputed); border: 1px solid #E8BABA; }
 
 .card-signal {
   display: inline-flex;
