@@ -369,8 +369,17 @@ function OwnerRow({ owner, role, onRefresh }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  function toDateInput(val) {
+    if (!val) return ''
+    const s = String(val)
+    // ISO datetime → take date part only
+    return s.length > 10 ? s.slice(0, 10) : s
+  }
 
   function startEdit() {
+    setSaveError('')
     setForm({
       fullName: p.FullName || '',
       mobile1: p.Mobile1 || '',
@@ -378,7 +387,7 @@ function OwnerRow({ owner, role, onRefresh }) {
       email: p.Email || '',
       address: p.Address || '',
       membershipNo: owner.MembershipNo || '',
-      memberSince: owner.MemberSince || '',
+      memberSince: toDateInput(owner.MemberSince),
       nominatedContact: owner.NominatedContact || '',
     })
     setEditing(true)
@@ -388,6 +397,7 @@ function OwnerRow({ owner, role, onRefresh }) {
 
   async function handleSave() {
     setSaving(true)
+    setSaveError('')
     try {
       await updatePerson({
         personId: p.PersonID,
@@ -405,6 +415,8 @@ function OwnerRow({ owner, role, onRefresh }) {
       })
       setEditing(false)
       onRefresh()
+    } catch (e) {
+      setSaveError(e.message || 'Save failed')
     } finally { setSaving(false) }
   }
 
@@ -424,11 +436,12 @@ function OwnerRow({ owner, role, onRefresh }) {
           <EditField label="Member since" value={form.memberSince}     onChange={v => set('memberSince', v)} type="date" />
           <EditField label="Contact name" value={form.nominatedContact} onChange={v => set('nominatedContact', v)} />
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
           <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+          {saveError && <span style={{ fontSize: 11, color: 'var(--disputed)' }}>{saveError}</span>}
         </div>
       </div>
     )
