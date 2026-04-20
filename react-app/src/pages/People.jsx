@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { getPeople, getPerson, updatePerson } from '../utils/api.js'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { getPeople, getPerson, updatePerson, uploadFileToDrive } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canEdit, initials, formatDate } from '../utils/constants.js'
 import IDCard from '../components/IDCard.jsx'
@@ -14,6 +14,11 @@ export default function People() {
   const [selected, setSelected] = useState(null)   // { person, ownerships }
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [showCard, setShowCard] = useState(null)   // ownership row for ID card
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploadingIdProof, setUploadingIdProof] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const photoInputRef = useRef(null)
+  const idProofInputRef = useRef(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -44,6 +49,58 @@ export default function People() {
 
   const currentOwned = selected?.ownerships?.filter(o => o.IsCurrent === 'TRUE') || []
   const pastOwned    = selected?.ownerships?.filter(o => o.IsCurrent !== 'TRUE') || []
+
+  function parseIdProofUrls(raw) {
+    if (!raw) return []
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.filter(Boolean)
+    } catch (_) {}
+    return String(raw)
+      .split(/[\n,]+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+  }
+
+  async function handlePhotoFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !selected?.person?.PersonID) return
+
+    setUploadError('')
+    setUploadingPhoto(true)
+    try {
+      const personId = selected.person.PersonID
+      const url = await uploadFileToDrive(file, 'People', personId)
+      await updatePerson({ personId, PhotoURL: url })
+      setSelected(prev => prev ? ({ ...prev, person: { ...prev.person, PhotoURL: url } }) : prev)
+    } catch (err) {
+      setUploadError(err.message || 'Photo upload failed')
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
+  async function handleIdProofFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !selected?.person?.PersonID) return
+
+    setUploadError('')
+    setUploadingIdProof(true)
+    try {
+      const personId = selected.person.PersonID
+      const url = await uploadFileToDrive(file, 'People', personId)
+      const current = parseIdProofUrls(selected.person.IDProofURLs)
+      const next = [...current, url]
+      await updatePerson({ personId, IDProofURLs: JSON.stringify(next) })
+      setSelected(prev => prev ? ({ ...prev, person: { ...prev.person, IDProofURLs: JSON.stringify(next) } }) : prev)
+    } catch (err) {
+      setUploadError(err.message || 'ID proof upload failed')
+    } finally {
+      setUploadingIdProof(false)
+    }
+  }
 
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
@@ -157,6 +214,51 @@ export default function People() {
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
+                {/* Documents */}
+                <div style={{ marginBottom: 16 }}>
+                  <div className="label" style={{ marginBottom: 8 }}>Documents</div>
+                  <div className="card" style={{ padding: '10px 12px' }}>
+                    {selected.person.PhotoURL ? (
+                      <div style={{ marginBottom: 10 }}>
+                        <a href={selected.person.PhotoURL} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--tc)', textDecoration: 'none' }}>
+                          Open photo ↗
+                        </a>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 10 }}>No photo uploaded</div>
+                    )}
+
+                    {parseIdProofUrls(selected.person.IDProofURLs).length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+                        {parseIdProofUrls(selected.person.IDProofURLs).map((url, i) => (
+                          <a key={`${url}-${i}`} href={url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--tc)', textDecoration: 'none' }}>
+                            ID proof {i + 1} ↗
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 10 }}>No ID proofs uploaded</div>
+                    )}
+
+                    {canEdit(role, 'owners') && (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto || uploadingIdProof}>
+                          {uploadingPhoto ? 'Uploading photo…' : 'Upload photo'}
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => idProofInputRef.current?.click()} disabled={uploadingPhoto || uploadingIdProof}>
+                          {uploadingIdProof ? 'Uploading ID proof…' : 'Upload ID proof'}
+                        </button>
+                        <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoFile} />
+                        <input ref={idProofInputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={handleIdProofFile} />
+                      </div>
+                    )}
+
+                    {uploadError && (
+                      <div style={{ marginTop: 10, fontSize: 12, color: 'var(--disputed)' }}>{uploadError}</div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Contact details */}
                 <div style={{ marginBottom: 16 }}>
                   <div className="label" style={{ marginBottom: 8 }}>Contact details</div>
