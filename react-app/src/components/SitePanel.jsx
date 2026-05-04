@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, updatePayment, deletePayment, createCallLog, updateCallLog, markFollowUpDone, reopenFollowUp, getAssignableUsers, uploadFileToDrive } from '../utils/api.js'
-import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES } from '../utils/constants.js'
+import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES, SITE_TYPES, SITE_TYPE_SQFT } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
 
@@ -27,6 +27,9 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [assignableUsers, setAssignableUsers] = useState([])
   const [noteError, setNoteError] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  const [showSiteEdit, setShowSiteEdit] = useState(false)
+  const [siteEditData, setSiteEditData] = useState({})
+  const [savingSite, setSavingSite] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -97,6 +100,25 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
       await load()
       onRefresh?.()
     } finally { setFlagSaving(false) }
+  }
+
+  function openSiteEdit() {
+    const s = data.site
+    setSiteEditData({ SiteType: s.SiteType || '', Sizesqft: s.Sizesqft || '', RegDate: toDateInput(s.RegDate) || '' })
+    setShowSiteEdit(true)
+  }
+
+  async function handleSaveSite() {
+    setSavingSite(true)
+    try {
+      const sqft = siteEditData.SiteType !== 'non-standard'
+        ? (SITE_TYPE_SQFT[siteEditData.SiteType] || siteEditData.Sizesqft)
+        : siteEditData.Sizesqft
+      await updateSite({ siteId, SiteType: siteEditData.SiteType, Sizesqft: String(sqft || ''), RegDate: siteEditData.RegDate })
+      setShowSiteEdit(false)
+      await load()
+      onRefresh?.()
+    } finally { setSavingSite(false) }
   }
 
   async function handleSaveNote() {
@@ -188,6 +210,48 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
 
         {tab === 'Overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Site details edit */}
+            {canEdit(role, 'owners') && (
+              showSiteEdit ? (
+                <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>Edit site details</div>
+                  <label style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    Site type
+                    <select
+                      value={siteEditData.SiteType}
+                      onChange={e => setSiteEditData(d => ({ ...d, SiteType: e.target.value, Sizesqft: SITE_TYPE_SQFT[e.target.value] || (e.target.value === 'non-standard' ? d.Sizesqft : '') }))}
+                      style={{ fontSize: 13, padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
+                    >
+                      <option value=''>— select —</option>
+                      {SITE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </label>
+                  {siteEditData.SiteType === 'non-standard' && (
+                    <label style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      Size (sqft)
+                      <input type='number' value={siteEditData.Sizesqft} onChange={e => setSiteEditData(d => ({ ...d, Sizesqft: e.target.value }))}
+                        style={{ fontSize: 13, padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: 120 }} />
+                    </label>
+                  )}
+                  <label style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    Registration date
+                    <input type='date' value={siteEditData.RegDate} onChange={e => setSiteEditData(d => ({ ...d, RegDate: e.target.value }))}
+                      style={{ fontSize: 13, padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: 160 }} />
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className='btn btn-sm' style={{ background: 'var(--tc)', color: '#fff', borderColor: 'var(--tc)' }} onClick={handleSaveSite} disabled={savingSite}>
+                      {savingSite ? 'Saving…' : 'Save'}
+                    </button>
+                    <button className='btn btn-ghost btn-sm' onClick={() => setShowSiteEdit(false)}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button className='btn btn-ghost btn-sm' onClick={openSiteEdit}>Edit site details</button>
+                </div>
+              )
+            )}
+
             {/* Flag toggle */}
             {canFlag(role) && (
               <div style={{
