@@ -299,7 +299,17 @@ def build_database(base_db_path, bank_csv_path, owners_list_path, members_list_p
         additional_head_id = str(additional_row.get("HeadID", "H005"))
 
     members_df = pd.read_excel(members_list_path, sheet_name="Final List")
-    bank_df = pd.read_csv(bank_csv_path)
+    # Auto-detect the actual header row — the CSV may have a summary block at the top.
+    # Scan for the first row that contains "Txn Date" to use as header.
+    _raw = pd.read_csv(bank_csv_path, header=None, dtype=str)
+    _header_row = None
+    for _i, _row in _raw.iterrows():
+        if _row.astype(str).str.strip().str.lower().eq("txn date").any():
+            _header_row = _i
+            break
+    if _header_row is None:
+        raise ValueError("Could not find 'Txn Date' header row in bank CSV. Check the file format.")
+    bank_df = pd.read_csv(bank_csv_path, header=_header_row, dtype=str)
 
     wb = load_workbook(owners_list_path, data_only=True)
     ws = wb["Owner List Ph1&Ph2"]
