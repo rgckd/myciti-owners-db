@@ -106,6 +106,7 @@ function handleRequest(e, method, params) {
       case 'getOwners':         requireDomain(role,'owners','view');  return jsonResponse(getOwners(params));
       case 'createOwner':       requireDomain(role,'owners','edit');  return jsonResponse(createOwner(params, caller));
       case 'updateOwner':       requireDomain(role,'owners','edit');  return jsonResponse(updateOwner(params, caller));
+      case 'removeOwnerFromSite': requireDomain(role,'owners','edit'); return jsonResponse(removeOwnerFromSite(params, caller));
       case 'transferOwnership': requireDomain(role,'owners','edit');  return jsonResponse(transferOwnership(params, caller));
 
       // ── AGENTS ──

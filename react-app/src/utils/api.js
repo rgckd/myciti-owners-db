@@ -82,6 +82,7 @@ export const createOwner    = (p) => call('createOwner', p)
 export const updateOwner    = (p) => call('updateOwner', p)
 export const flagOwner      = (ownerId, flag, comment='') => call('flagOwner', { ownerId, flag: String(flag), comment })
 export const transferOwnership = (p) => call('transferOwnership', p)
+export const removeOwnerFromSite = (p) => call('removeOwnerFromSite', p)
 
 // ── Agents ─────────────────────────────────────────────────────────────────
 export const getAgents      = () => call('getAgents')

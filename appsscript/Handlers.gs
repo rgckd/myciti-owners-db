@@ -228,6 +228,37 @@
     return { updated: true };
   }
 
+  function removeOwnerFromSite(params, caller) {
+    if (!params.ownerId) throw new Error('ownerId required');
+    if (!params.personId) throw new Error('personId required');
+
+    const today = NOW_ISO().split('T')[0];
+
+    // Mark this owner row as no longer current
+    const ownerChanges = updateRowFields(CONFIG.TABS.OWNERS, 'OwnerID', params.ownerId, {
+      IsCurrent: 'FALSE',
+      OwnershipEndDate: today
+    }, caller);
+    writeAuditChanges(caller, 'Owners', params.ownerId, ownerChanges);
+
+    // Check if the person is an active owner on any other site
+    const allOwners = sheetToObjects(CONFIG.TABS.OWNERS);
+    const stillActive = allOwners.some(o =>
+      o.PersonID === params.personId &&
+      o.OwnerID !== params.ownerId &&
+      (o.IsCurrent === 'TRUE' || o.IsCurrent === true) &&
+      o.IsDeleted !== 'TRUE'
+    );
+
+    let personSoftDeleted = false;
+    if (!stillActive) {
+      softDelete(CONFIG.TABS.PEOPLE, 'PersonID', params.personId, caller);
+      personSoftDeleted = true;
+    }
+
+    return { removed: true, personSoftDeleted };
+  }
+
   function flagOwner(params, caller) {
     throw new Error('Owner-level flagging is disabled. Use Site-level flagging only.');
   }

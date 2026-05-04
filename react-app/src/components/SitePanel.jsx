@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, updatePayment, deletePayment, createCallLog, updateCallLog, markFollowUpDone, reopenFollowUp, getAssignableUsers, uploadFileToDrive } from '../utils/api.js'
+import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, removeOwnerFromSite, updatePayment, deletePayment, createCallLog, updateCallLog, markFollowUpDone, reopenFollowUp, getAssignableUsers, uploadFileToDrive } from '../utils/api.js'
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES, SITE_TYPES, SITE_TYPE_SQFT } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
@@ -494,6 +494,46 @@ function PanelShell({ children, onClose }) {
   )
 }
 
+function RemoveOwnerButton({ owner, onRefresh }) {
+  const [confirming, setConfirming] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleRemove() {
+    setRemoving(true)
+    setError('')
+    try {
+      await removeOwnerFromSite({ ownerId: owner.OwnerID, personId: owner.PersonID })
+      onRefresh()
+    } catch (e) {
+      setError(e.message || 'Remove failed')
+      setConfirming(false)
+    } finally { setRemoving(false) }
+  }
+
+  if (confirming) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 11, color: 'var(--disputed)' }}>Remove owner?</span>
+        <button className="btn btn-sm" style={{ fontSize: 11, background: 'var(--disputed)', color: '#fff', border: 'none' }}
+          onClick={handleRemove} disabled={removing}>
+          {removing ? 'Removing…' : 'Confirm'}
+        </button>
+        <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setConfirming(false)} disabled={removing}>
+          Cancel
+        </button>
+        {error && <span style={{ fontSize: 11, color: 'var(--disputed)' }}>{error}</span>}
+      </span>
+    )
+  }
+  return (
+    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, color: 'var(--disputed)' }}
+      onClick={e => { e.stopPropagation(); setConfirming(true) }}>
+      Remove from site
+    </button>
+  )
+}
+
 function OwnerRow({ owner, role, onRefresh }) {
   const p = owner.person || {}
   const [expanded, setExpanded] = useState(false)
@@ -719,7 +759,10 @@ function OwnerRow({ owner, role, onRefresh }) {
             {owner.NominatedContact && <InfoRow label="Contact" value={owner.NominatedContact} />}
           </div>
           {canEdit(role, 'owners') && (
-            <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={startEdit}>Edit</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={startEdit}>Edit</button>
+              <RemoveOwnerButton owner={owner} onRefresh={onRefresh} />
+            </div>
           )}
         </div>
       )}
