@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { getPayments, getPaymentHeads, updatePayment, deletePayment, uploadFileToDrive } from '../utils/api.js'
+import { getPayments, getPaymentHeads, getSites, updatePayment, deletePayment, uploadFileToDrive } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canEdit, formatCurrency, formatDate } from '../utils/constants.js'
 import PaymentModal from '../components/PaymentModal.jsx'
@@ -10,6 +10,7 @@ export default function PaymentsView() {
   const role = user?.role || 'View'
 
   const [payments, setPayments] = useState([])
+  const [sites, setSites]       = useState([])
   const [heads, setHeads]       = useState([])
   const [loading, setLoading]   = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -20,7 +21,7 @@ export default function PaymentsView() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [pays, hs] = await Promise.all([getPayments({}), getPaymentHeads()])
+      const [pays, hs, ss] = await Promise.all([getPayments({}), getPaymentHeads(), getSites({})])
       pays.sort((a, b) => {
         const recordedA = a.RecordedAt ? new Date(a.RecordedAt).getTime() : 0
         const recordedB = b.RecordedAt ? new Date(b.RecordedAt).getTime() : 0
@@ -34,6 +35,7 @@ export default function PaymentsView() {
       })
       setPayments(pays)
       setHeads(hs)
+      setSites(ss)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
@@ -107,13 +109,13 @@ export default function PaymentsView() {
         ) : (
           <table style={{ width: 'max-content', minWidth: 0, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
             <colgroup>
+              <col style={{ width: 138 }} />
               <col style={{ width: 92 }} />
               <col style={{ width: 150 }} />
               <col style={{ width: 290 }} />
               <col style={{ width: 98 }} />
               <col style={{ width: 104 }} />
-              <col style={{ width: 126 }} />
-              <col style={{ width: 300 }} />
+              <col style={{ width: 220 }} />
               <col style={{ width: 86 }} />
             </colgroup>
             <thead>
@@ -121,7 +123,7 @@ export default function PaymentsView() {
                 position: 'sticky', top: 0,
                 background: 'var(--surface-2)', borderBottom: '1px solid var(--border)'
               }}>
-                {['Date','Site','Head','Amount','Mode','Bank ref / UTR','Flag','Recorded'].map(h => (
+                {['Flag','Date','Site','Head','Amount','Mode','Bank ref / UTR','Recorded'].map(h => (
                   <th key={h} style={{
                     padding: '10px 8px', textAlign: 'left', fontWeight: 500,
                     color: 'var(--ink-2)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden'
@@ -141,6 +143,19 @@ export default function PaymentsView() {
                   onMouseEnter={e => { if (canEditPayments) e.currentTarget.style.background = 'var(--surface-2)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = '' }}
                 >
+                  <td style={{ padding: '10px 8px', color: 'var(--ink-2)', fontSize: 11, maxWidth: 300 }}>
+                    {(p.FlaggedForAttention === 'TRUE' || p.FlaggedForAttention === true) ? (
+                      <>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--partial)', fontWeight: 600 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--partial)', display: 'inline-block' }} />
+                          Needs follow-up
+                        </div>
+                        <div style={{ marginTop: 2, whiteSpace: 'normal', lineHeight: 1.35, color: 'var(--ink-3)' }}>
+                          {p.FlagComment || 'Flagged payment'}
+                        </div>
+                      </>
+                    ) : '—'}
+                  </td>
                   <td style={{ padding: '10px 8px', color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>
                     {formatDate(p.PaymentDate)}
                   </td>
@@ -162,21 +177,11 @@ export default function PaymentsView() {
                   <td style={{ padding: '10px 8px', color: 'var(--ink-2)' }}>
                     {p.Mode || '—'}
                   </td>
-                  <td style={{ padding: '10px 8px', color: 'var(--ink-2)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td
+                    title={p.BankRef || ''}
+                    style={{ padding: '10px 8px', color: 'var(--ink-2)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
                     {p.BankRef || '—'}
-                  </td>
-                  <td style={{ padding: '10px 8px', color: 'var(--ink-2)', fontSize: 11, maxWidth: 300 }}>
-                    {(p.FlaggedForAttention === 'TRUE' || p.FlaggedForAttention === true) ? (
-                      <>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--partial)', fontWeight: 600 }}>
-                          <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--partial)', display: 'inline-block' }} />
-                          Needs follow-up
-                        </div>
-                        <div style={{ marginTop: 2, whiteSpace: 'normal', lineHeight: 1.35, color: 'var(--ink-3)' }}>
-                          {p.FlagComment || 'Flagged payment'}
-                        </div>
-                      </>
-                    ) : '—'}
                   </td>
                   <td style={{ padding: '10px 8px', color: 'var(--ink-3)', fontSize: 11, whiteSpace: 'nowrap' }}>
                     <div>{formatDate(p.RecordedAt)}</div>
@@ -203,6 +208,7 @@ export default function PaymentsView() {
         <EditPaymentModal
           payment={editing}
           heads={heads}
+          sites={sites}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load() }}
         />
@@ -243,7 +249,7 @@ function toDateInput(val) {
   return `${y}-${m}-${day}`
 }
 
-function EditPaymentModal({ payment, heads, onClose, onSaved }) {
+function EditPaymentModal({ payment, heads, sites, onClose, onSaved }) {
   const [amount, setAmount]   = useState(String(payment.Amount || ''))
   const [mode, setMode]       = useState(payment.Mode || '')
   const [date, setDate]       = useState(toDateInput(payment.PaymentDate))
@@ -257,6 +263,24 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
   const [deleting, setDeleting] = useState(false)
   const [error, setError]     = useState('')
   const fileInputRef = useRef(null)
+
+  const phaseOptions = useMemo(() => {
+    const values = [...new Set((sites || []).map(s => String(s.Phase || '')).filter(Boolean))]
+    return values.sort((a, b) => Number(a) - Number(b) || a.localeCompare(b, undefined, { numeric: true }))
+  }, [sites])
+
+  const matchedSite = useMemo(() => (sites || []).find(s => s.SiteID === payment.SiteID), [sites, payment.SiteID])
+  const [sitePhase, setSitePhase] = useState((matchedSite?.Phase || payment.Phase || '').toString())
+  const [siteNo, setSiteNo] = useState((matchedSite?.SiteNo || payment.SiteNo || '').toString())
+
+  const siteNoOptions = useMemo(() => {
+    if (!sitePhase) return []
+    return (sites || [])
+      .filter(s => String(s.Phase || '') === String(sitePhase))
+      .map(s => String(s.SiteNo || '').trim())
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+  }, [sites, sitePhase])
 
   async function handleFileSelect(e) {
     const file = e.target.files[0]
@@ -275,8 +299,24 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
   async function handleSave() {
     setSaving(true); setError('')
     try {
+      let selectedSiteId = payment.SiteID || ''
+      if (!sitePhase && !siteNo) {
+        selectedSiteId = ''
+      } else if (sitePhase && siteNo) {
+        const selectedSite = (sites || []).find(
+          s => String(s.Phase || '') === String(sitePhase) && String(s.SiteNo || '').trim() === String(siteNo).trim()
+        )
+        if (!selectedSite) {
+          throw new Error('Selected Phase + Site number does not exist')
+        }
+        selectedSiteId = selectedSite.SiteID
+      } else {
+        throw new Error('Select both Phase and Site number, or leave both blank')
+      }
+
       await updatePayment({
         paymentId: payment.PaymentID,
+        SiteID: selectedSiteId,
         Amount: Number(amount),
         Mode: mode,
         PaymentDate: date,
@@ -332,6 +372,29 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
         </div>
 
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{
+            padding: '10px 12px', borderRadius: 10,
+            border: '1px solid var(--border)', background: 'var(--surface-2)'
+          }}>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 6 }}>Site mapping</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <label style={{ fontSize: 11, color: 'var(--ink-3)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                Phase
+                <select className='input' value={sitePhase} onChange={e => { setSitePhase(e.target.value); setSiteNo('') }}>
+                  <option value=''>Unmapped</option>
+                  {phaseOptions.map(ph => <option key={ph} value={ph}>Phase {ph}</option>)}
+                </select>
+              </label>
+              <label style={{ fontSize: 11, color: 'var(--ink-3)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                Site number
+                <select className='input' value={siteNo} disabled={!sitePhase} onChange={e => setSiteNo(e.target.value)}>
+                  <option value=''>{sitePhase ? 'Select site' : 'Select phase first'}</option>
+                  {siteNoOptions.map(no => <option key={no} value={no}>{no}</option>)}
+                </select>
+              </label>
+            </div>
+          </div>
+
           <div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 4 }}>Payment head</div>
             <div style={{ fontSize: 13, fontWeight: 500 }}>{headName}</div>

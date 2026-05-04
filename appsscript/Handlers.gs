@@ -341,7 +341,7 @@
   }
 
   function updatePayment(params, caller, role) {
-    const allowed = ['Amount','Mode','PaymentDate','ReceiptNo','BankRef','ProofURL','FlaggedForAttention','FlagComment','FlaggedBy','FlaggedAt'];
+    const allowed = ['SiteID','Amount','Mode','PaymentDate','ReceiptNo','BankRef','ProofURL','FlaggedForAttention','FlagComment','FlaggedBy','FlaggedAt'];
     const fields = {};
     allowed.forEach(f => { if (params[f] !== undefined) fields[f] = params[f]; });
 
