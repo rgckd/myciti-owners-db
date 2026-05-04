@@ -17,6 +17,7 @@ export default function PaymentsView() {
   const [editing, setEditing]   = useState(null)   // payment row being edited
   const [headFilter, setHeadFilter] = useState('')
   const [modeFilter, setModeFilter] = useState('')
+  const [flaggedOnly, setFlaggedOnly] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -46,8 +47,9 @@ export default function PaymentsView() {
     let list = payments
     if (headFilter) list = list.filter(p => p.HeadID === headFilter)
     if (modeFilter) list = list.filter(p => p.Mode === modeFilter)
+    if (flaggedOnly) list = list.filter(p => p.FlaggedForAttention === 'TRUE' || p.FlaggedForAttention === true)
     return list
-  }, [payments, headFilter, modeFilter])
+  }, [payments, headFilter, modeFilter, flaggedOnly])
 
   const total = filtered.reduce((s, p) => s + Number(p.Amount || 0), 0)
   const modes = [...new Set(payments.map(p => p.Mode).filter(Boolean))]
@@ -77,6 +79,14 @@ export default function PaymentsView() {
           <option value="">All modes</option>
           {modes.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
+        <button
+          className={`btn ${flaggedOnly ? 'btn-primary' : 'btn-ghost'}`}
+          style={{ fontSize: 12, gap: 6, display: 'flex', alignItems: 'center' }}
+          onClick={() => setFlaggedOnly(f => !f)}
+        >
+          <span style={{ width: 7, height: 7, borderRadius: 999, background: flaggedOnly ? '#fff' : 'var(--partial)', display: 'inline-block' }} />
+          Flagged only
+        </button>
         {canEditPayments && (
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
             + Record payment
@@ -92,9 +102,9 @@ export default function PaymentsView() {
       }}>
         <span>{filtered.length} payments</span>
         <span style={{ fontWeight: 600, color: 'var(--paid)' }}>{formatCurrency(total)} total</span>
-        {(headFilter || modeFilter) && (
+        {(headFilter || modeFilter || flaggedOnly) && (
           <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}
-            onClick={() => { setHeadFilter(''); setModeFilter('') }}>
+            onClick={() => { setHeadFilter(''); setModeFilter(''); setFlaggedOnly(false) }}>
             Clear filters
           </button>
         )}
