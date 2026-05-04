@@ -113,6 +113,7 @@ export default function PaymentsView() {
               <col style={{ width: 98 }} />
               <col style={{ width: 104 }} />
               <col style={{ width: 126 }} />
+              <col style={{ width: 300 }} />
               <col style={{ width: 86 }} />
             </colgroup>
             <thead>
@@ -120,7 +121,7 @@ export default function PaymentsView() {
                 position: 'sticky', top: 0,
                 background: 'var(--surface-2)', borderBottom: '1px solid var(--border)'
               }}>
-                {['Date','Site','Head','Amount','Mode','Bank ref / UTR','Recorded'].map(h => (
+                {['Date','Site','Head','Amount','Mode','Bank ref / UTR','Flag','Recorded'].map(h => (
                   <th key={h} style={{
                     padding: '10px 8px', textAlign: 'left', fontWeight: 500,
                     color: 'var(--ink-2)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden'
@@ -163,6 +164,19 @@ export default function PaymentsView() {
                   </td>
                   <td style={{ padding: '10px 8px', color: 'var(--ink-2)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {p.BankRef || '—'}
+                  </td>
+                  <td style={{ padding: '10px 8px', color: 'var(--ink-2)', fontSize: 11, maxWidth: 300 }}>
+                    {(p.FlaggedForAttention === 'TRUE' || p.FlaggedForAttention === true) ? (
+                      <>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--partial)', fontWeight: 600 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--partial)', display: 'inline-block' }} />
+                          Needs follow-up
+                        </div>
+                        <div style={{ marginTop: 2, whiteSpace: 'normal', lineHeight: 1.35, color: 'var(--ink-3)' }}>
+                          {p.FlagComment || 'Flagged payment'}
+                        </div>
+                      </>
+                    ) : '—'}
                   </td>
                   <td style={{ padding: '10px 8px', color: 'var(--ink-3)', fontSize: 11, whiteSpace: 'nowrap' }}>
                     <div>{formatDate(p.RecordedAt)}</div>
@@ -236,6 +250,8 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
   const [receiptNo, setReceiptNo] = useState(payment.ReceiptNo || '')
   const [bankRef, setBankRef] = useState(payment.BankRef || '')
   const [proofUrl, setProofUrl] = useState(payment.ProofURL || '')
+  const [flagged, setFlagged] = useState(payment.FlaggedForAttention === 'TRUE' || payment.FlaggedForAttention === true)
+  const [flagComment, setFlagComment] = useState(payment.FlagComment || '')
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving]   = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -267,6 +283,8 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
         ReceiptNo: receiptNo,
         BankRef: bankRef,
         ProofURL: proofUrl,
+        FlaggedForAttention: flagged ? 'TRUE' : 'FALSE',
+        FlagComment: flagComment,
       })
       onSaved()
     } catch (e) { setError(e.message) }
@@ -352,6 +370,29 @@ function EditPaymentModal({ payment, heads, onClose, onSaved }) {
               <label className="label">Bank ref / UTR</label>
               <input className="input" value={bankRef} onChange={e => setBankRef(e.target.value)} />
             </div>
+          </div>
+
+          <div style={{
+            padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+            background: 'var(--surface-2)'
+          }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+              <input type="checkbox" checked={flagged} onChange={e => setFlagged(e.target.checked)} />
+              Flag this payment for follow-up
+            </label>
+            {flagged && (
+              <div style={{ marginTop: 8 }}>
+                <label className="label">Flag comment</label>
+                <textarea
+                  className="input"
+                  rows={3}
+                  value={flagComment}
+                  onChange={e => setFlagComment(e.target.value)}
+                  placeholder="Example: Zombie payment - Site/Ph missing; update after verification"
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Receipt upload */}

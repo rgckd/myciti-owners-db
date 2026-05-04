@@ -332,6 +332,7 @@
       HeadID: params.headId, Amount: params.amount, Mode: params.mode,
       PaymentDate: params.paymentDate, ReceiptNo: params.receiptNo || '',
       BankRef: params.bankRef || '', ProofURL: params.proofUrl || '',
+      FlaggedForAttention: 'FALSE', FlagComment: '', FlaggedBy: '', FlaggedAt: '',
       RecordedBy: caller.email, RecordedAt: NOW_ISO()
     };
     appendRow(CONFIG.TABS.PAYMENTS, obj, caller);
@@ -340,9 +341,23 @@
   }
 
   function updatePayment(params, caller, role) {
-    const allowed = ['Amount','Mode','PaymentDate','ReceiptNo','BankRef','ProofURL'];
+    const allowed = ['Amount','Mode','PaymentDate','ReceiptNo','BankRef','ProofURL','FlaggedForAttention','FlagComment','FlaggedBy','FlaggedAt'];
     const fields = {};
     allowed.forEach(f => { if (params[f] !== undefined) fields[f] = params[f]; });
+
+    if (params.FlaggedForAttention !== undefined) {
+      const flagging =
+        params.FlaggedForAttention === true ||
+        String(params.FlaggedForAttention).toUpperCase() === 'TRUE' ||
+        String(params.FlaggedForAttention).toLowerCase() === 'true';
+      fields.FlaggedForAttention = flagging ? 'TRUE' : 'FALSE';
+      fields.FlaggedBy = caller.email;
+      fields.FlaggedAt = NOW_ISO();
+      if (!flagging && params.FlagComment === undefined) {
+        fields.FlagComment = '';
+      }
+    }
+
     const changes = updateRowFields(CONFIG.TABS.PAYMENTS, 'PaymentID', params.paymentId, fields, caller);
     writeAuditChanges(caller, 'Payments', params.paymentId, changes);
     return { updated: true };
