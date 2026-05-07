@@ -13,6 +13,8 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [heads, setHeads] = useState([])
   const [callLog, setCallLog] = useState([])
   const [loading, setLoading] = useState(true)
+  const [paymentsLoading, setPaymentsLoading] = useState(false)
+  const [callLogLoading, setCallLogLoading] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
@@ -31,28 +33,53 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [siteEditData, setSiteEditData] = useState({})
   const [savingSite, setSavingSite] = useState(false)
 
-  const load = useCallback(async () => {
+  const fetchedTabs = useRef(new Set())
+
+  // Initial load — site only so Overview appears immediately
+  const loadSite = useCallback(async () => {
     setLoading(true)
     try {
-      const [siteData, paysData, headsData, logsData] = await Promise.all([
-        getSite(siteId),
-        getPayments({ siteId }),
-        getPaymentHeads(),
-        getCallLog({ siteId }),
-      ])
-      setData(siteData)
-      setPayments(paysData)
-      setHeads(headsData)
-      setCallLog(logsData)
+      setData(await getSite(siteId))
+      fetchedTabs.current.add('Overview')
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }, [siteId])
 
-  useEffect(() => { load() }, [load])
+  const loadPayments = useCallback(async () => {
+    setPaymentsLoading(true)
+    try {
+      const [paysData, headsData] = await Promise.all([getPayments({ siteId }), getPaymentHeads()])
+      setPayments(paysData); setHeads(headsData)
+      fetchedTabs.current.add('Payments')
+    } catch (e) { console.error(e) }
+    finally { setPaymentsLoading(false) }
+  }, [siteId])
 
+  const loadCallLog = useCallback(async () => {
+    setCallLogLoading(true)
+    try {
+      const [logsData, usersData] = await Promise.all([getCallLog({ siteId }), getAssignableUsers()])
+      setCallLog(logsData); setAssignableUsers(usersData)
+      fetchedTabs.current.add('Call log')
+    } catch (e) { console.error(e) }
+    finally { setCallLogLoading(false) }
+  }, [siteId])
+
+  // Full reload after mutations — reloads site + any tab already visited
+  const load = useCallback(async () => {
+    const reloads = [loadSite()]
+    if (fetchedTabs.current.has('Payments')) reloads.push(loadPayments())
+    if (fetchedTabs.current.has('Call log')) reloads.push(loadCallLog())
+    await Promise.all(reloads)
+  }, [loadSite, loadPayments, loadCallLog])
+
+  useEffect(() => { loadSite() }, [loadSite])
+
+  // Lazy load tab data on first visit
   useEffect(() => {
-    getAssignableUsers().then(setAssignableUsers).catch(console.error)
-  }, [])
+    if (tab === 'Payments' && !fetchedTabs.current.has('Payments')) loadPayments()
+    if (tab === 'Call log' && !fetchedTabs.current.has('Call log')) loadCallLog()
+  }, [tab, loadPayments, loadCallLog])
 
   useEffect(() => {
     if (!followup.trim()) {
@@ -309,7 +336,10 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
           </div>
         )}
 
-        {tab === 'Payments' && (
+        {tab === 'Payments' && paymentsLoading && (
+          <div className="empty-state"><div className="spin" style={{ margin: '0 auto' }} /></div>
+        )}
+        {tab === 'Payments' && !paymentsLoading && (
           <div>
             <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 6 }}>
               Dues summary
@@ -360,7 +390,10 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
           </div>
         )}
 
-        {tab === 'Call log' && (
+        {tab === 'Call log' && callLogLoading && (
+          <div className="empty-state"><div className="spin" style={{ margin: '0 auto' }} /></div>
+        )}
+        {tab === 'Call log' && !callLogLoading && (
           <div>
             {/* Add note form */}
             {canEdit(role, 'calllog') && (
