@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getUsers, addUser, updateUser, removeUser, checkSheetAccess,
-         getPaymentHeads, createPaymentHead, updatePaymentHead } from '../utils/api.js'
+         getPaymentHeads, createPaymentHead, updatePaymentHead,
+         invalidatePaymentHeads, invalidateAssignableUsers } from '../utils/api.js'
 import { formatDate, toDateInput } from '../utils/constants.js'
 import DateInput from '../components/DateInput.jsx'
 
@@ -65,6 +66,7 @@ function UsersTab() {
       }
       setSaving(true)
       await addUser({ email, displayName: name || email, role })
+      invalidateAssignableUsers()
       setShowAdd(false); setEmail(''); setName(''); setRole('View')
       load()
     } catch (e) { setError(e.message) }
@@ -73,12 +75,14 @@ function UsersTab() {
 
   async function handleRoleChange(userEmail, newRole) {
     await updateUser({ email: userEmail, role: newRole })
+    invalidateAssignableUsers()
     load()
   }
 
   async function handleRemove(userEmail) {
     if (!window.confirm(`Remove ${userEmail} from the app?`)) return
     await removeUser(userEmail)
+    invalidateAssignableUsers()
     load()
   }
 
@@ -246,7 +250,9 @@ function PaymentHeadsTab() {
           dueDate: form.dueDate, notes: form.notes
         })
       }
-      setShowForm(false); load()
+      setShowForm(false)
+      invalidatePaymentHeads()
+      load()
     } catch (e) { setError(e.message) }
     finally { setSaving(false) }
   }

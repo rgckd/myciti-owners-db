@@ -90,12 +90,32 @@ export const createAgent    = (p) => call('createAgent', p)
 export const updateAgent    = (p) => call('updateAgent', p)
 export const softDeleteAgent= (agentId) => call('softDeleteAgent', { agentId })
 
+// ── In-memory cache (deduplicates in-flight + caches results for TTL) ──────
+const _cache = new Map()
+const CACHE_TTL = 10 * 60 * 1000 // 10 minutes
+
+function cached(key, fn) {
+  const entry = _cache.get(key)
+  if (entry) {
+    if (entry.promise) return entry.promise          // deduplicate in-flight
+    if (Date.now() - entry.time < CACHE_TTL) return Promise.resolve(entry.data)
+  }
+  const promise = fn()
+    .then(data => { _cache.set(key, { data, time: Date.now(), promise: null }); return data })
+    .catch(err  => { _cache.delete(key); throw err })
+  _cache.set(key, { promise })
+  return promise
+}
+
+export function invalidatePaymentHeads()   { _cache.delete('paymentHeads') }
+export function invalidateAssignableUsers() { _cache.delete('assignableUsers') }
+
 // ── Payments ───────────────────────────────────────────────────────────────
 export const getPayments       = (p={}) => call('getPayments', p)
 export const createPayment     = (p) => call('createPayment', p)
 export const updatePayment     = (p) => call('updatePayment', p)
 export const deletePayment     = (paymentId) => call('deletePayment', { paymentId })
-export const getPaymentHeads   = () => call('getPaymentHeads')
+export const getPaymentHeads   = () => cached('paymentHeads',   () => call('getPaymentHeads'))
 export const createPaymentHead = (p) => call('createPaymentHead', p)
 export const updatePaymentHead = (p) => call('updatePaymentHead', p)
 
@@ -107,7 +127,7 @@ export const markFollowUpDone = (logId, resolutionComment = '') =>
   call('markFollowUpDone', { logId, resolutionComment })
 export const reopenFollowUp = (logId) => call('reopenFollowUp', { logId })
 export const getFollowUps   = (p={}) => call('getFollowUps', p)
-export const getAssignableUsers = () => call('getAssignableUsers')
+export const getAssignableUsers = () => cached('assignableUsers', () => call('getAssignableUsers'))
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
 export const getStats       = () => call('getStats')
