@@ -169,7 +169,12 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
           <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>
             Site {site.SiteNo} — Phase {site.Phase}
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {canEdit(role, 'owners') && !showSiteEdit && (
+              <button className="btn btn-ghost btn-sm" onClick={openSiteEdit}>Edit site details</button>
+            )}
+            <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[site.SiteType, site.Sizesqft ? `${site.Sizesqft} sqft` : null, site.RegDate ? `Reg: ${formatDate(site.RegDate)}` : null]
@@ -245,11 +250,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
                     <button className='btn btn-ghost btn-sm' onClick={() => setShowSiteEdit(false)}>Cancel</button>
                   </div>
                 </div>
-              ) : (
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button className='btn btn-ghost btn-sm' onClick={openSiteEdit}>Edit site details</button>
-                </div>
-              )
+              ) : null
             )}
 
             {/* Flag toggle */}
