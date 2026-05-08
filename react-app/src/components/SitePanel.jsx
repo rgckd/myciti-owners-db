@@ -36,8 +36,8 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const fetchedTabs = useRef(new Set())
 
   // Initial load — site only so Overview appears immediately
-  const loadSite = useCallback(async () => {
-    setLoading(true)
+  const loadSite = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       setData(await getSite(siteId))
       fetchedTabs.current.add('Overview')
@@ -67,7 +67,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
 
   // Full reload after mutations — reloads site + any tab already visited
   const load = useCallback(async () => {
-    const reloads = [loadSite()]
+    const reloads = [loadSite(true)]
     if (fetchedTabs.current.has('Payments')) reloads.push(loadPayments())
     if (fetchedTabs.current.has('Call log')) reloads.push(loadCallLog())
     await Promise.all(reloads)

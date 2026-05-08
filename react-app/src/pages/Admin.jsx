@@ -47,8 +47,8 @@ function UsersTab() {
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
 
-  async function load() {
-    setLoading(true)
+  async function load(silent = false) {
+    if (!silent) setLoading(true)
     try { setUsers(await getUsers()) }
     catch (e) { console.error(e) }
     finally { setLoading(false) }
@@ -68,7 +68,7 @@ function UsersTab() {
       await addUser({ email, displayName: name || email, role })
       invalidateAssignableUsers()
       setShowAdd(false); setEmail(''); setName(''); setRole('View')
-      load()
+      load(true)
     } catch (e) { setError(e.message) }
     finally { setChecking(false); setSaving(false) }
   }
@@ -76,14 +76,14 @@ function UsersTab() {
   async function handleRoleChange(userEmail, newRole) {
     await updateUser({ email: userEmail, role: newRole })
     invalidateAssignableUsers()
-    load()
+    load(true)
   }
 
   async function handleRemove(userEmail) {
     if (!window.confirm(`Remove ${userEmail} from the app?`)) return
     await removeUser(userEmail)
     invalidateAssignableUsers()
-    load()
+    load(true)
   }
 
   const ROLE_COLORS = {
@@ -204,8 +204,8 @@ function PaymentHeadsTab() {
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
 
-  async function load() {
-    setLoading(true)
+  async function load(silent = false) {
+    if (!silent) setLoading(true)
     try { setHeads(await getPaymentHeads()) }
     catch (e) { console.error(e) }
     finally { setLoading(false) }
@@ -252,7 +252,7 @@ function PaymentHeadsTab() {
       }
       setShowForm(false)
       invalidatePaymentHeads()
-      load()
+      load(true)
     } catch (e) { setError(e.message) }
     finally { setSaving(false) }
   }

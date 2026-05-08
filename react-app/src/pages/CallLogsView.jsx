@@ -28,8 +28,8 @@ export default function CallLogsView() {
 
   const canAct = canEdit(role, 'calllog')
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const data = await getCallLog({})
       data.sort((a, b) => new Date(b.LogDate || b.LoggedAt) - new Date(a.LogDate || a.LoggedAt))
@@ -129,7 +129,7 @@ export default function CallLogsView() {
           canAct={canAct}
           assignableUsers={assignableUsers}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); load() }}
+          onSaved={() => { setEditing(null); load(true) }}
         />
       )}
 
@@ -137,7 +137,7 @@ export default function CallLogsView() {
         <AddCallLogModal
           assignableUsers={assignableUsers}
           onClose={() => setShowAdd(false)}
-          onSaved={() => { setShowAdd(false); load() }}
+          onSaved={() => { setShowAdd(false); load(true) }}
         />
       )}
     </div>

@@ -19,8 +19,8 @@ export default function PaymentsView() {
   const [modeFilter, setModeFilter] = useState('')
   const [flaggedOnly, setFlaggedOnly] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const [pays, hs, ss] = await Promise.all([getPayments({}), getPaymentHeads(), getSites({})])
       pays.sort((a, b) => {
@@ -41,7 +41,7 @@ export default function PaymentsView() {
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { load() }, [load] )
+  useEffect(() => { load() }, [load])
 
   const filtered = useMemo(() => {
     let list = payments
@@ -208,7 +208,7 @@ export default function PaymentsView() {
       {showModal && (
         <PaymentModal
           onClose={() => setShowModal(false)}
-          onSaved={() => { setShowModal(false); load() }}
+          onSaved={() => { setShowModal(false); load(true) }}
           role={role}
         />
       )}
@@ -220,7 +220,7 @@ export default function PaymentsView() {
           heads={heads}
           sites={sites}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); load() }}
+          onSaved={() => { setEditing(null); load(true) }}
         />
       )}
     </div>

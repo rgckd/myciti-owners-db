@@ -14,8 +14,8 @@ export default function Agents() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  async function load() {
-    setLoading(true)
+  async function load(silent = false) {
+    if (!silent) setLoading(true)
     try { setAgents(await getAgents()) }
     catch (e) { console.error(e) }
     finally { setLoading(false) }
@@ -44,7 +44,7 @@ export default function Agents() {
         await createAgent({ name: form.name, mobile: form.mobile, email: form.email, notes: form.notes })
       }
       setShowForm(false); setSelected(null)
-      load()
+      load(true)
     } catch (e) { setError(e.message) }
     finally { setSaving(false) }
   }
@@ -52,7 +52,7 @@ export default function Agents() {
   async function handleDelete(agentId) {
     if (!window.confirm('Remove this agent?')) return
     await softDeleteAgent(agentId)
-    load()
+    load(true)
   }
 
   return (
