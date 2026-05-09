@@ -3,7 +3,7 @@ import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES, SITE_TYPES, SITE_TYPE_SQFT } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
-import IDCard from './IDCard.jsx'
+import CombinedIDCard from './CombinedIDCard.jsx'
 
 const TABS = ['Overview', 'Payments', 'Call log', 'Attachments']
 
@@ -845,14 +845,14 @@ function IDCardModal({ ownership, person, onClose }) {
     }}>
       <div style={{
         background: 'var(--surface)', borderRadius: 'var(--radius-xl)',
-        padding: 24, maxWidth: 520, width: '100%',
-        border: '1px solid var(--border)'
+        padding: 20, maxWidth: 980, width: '100%',
+        border: '1px solid var(--border)', maxHeight: '88vh', overflowY: 'auto'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div style={{ fontWeight: 600 }}>Membership ID Card</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontWeight: 600, fontSize: 28, lineHeight: 1.1 }}>Single Site ID Card</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
-        <IDCard ownership={ownership} person={person} />
+        <CombinedIDCard ownership={ownership} person={person} />
       </div>
     </div>
   )
