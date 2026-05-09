@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 const CARD_W = 960
 const CARD_H = 560
@@ -47,7 +47,7 @@ export default function CombinedIDCard({ ownership, person, site }) {
     }
   }, [ownership, person, site])
 
-  async function handleGeneratePreview() {
+  async function generatePreview() {
     if (!payload.memberId || !payload.phase || !payload.site) {
       setError('Missing membership, phase, or site details for this owner.')
       setStatus('')
@@ -71,9 +71,13 @@ export default function CombinedIDCard({ ownership, person, site }) {
     }
   }
 
+  useEffect(() => {
+    generatePreview()
+  }, [payload.memberId, payload.memberName, payload.phase, payload.site, payload.phone, payload.memberSince])
+
   function handleDownloadCombined() {
     if (!previewUrl) {
-      setError('Generate preview first.')
+      setError(generating ? 'Preview is still generating. Please wait a moment.' : 'Preview is not ready yet.')
       return
     }
 
@@ -93,11 +97,8 @@ export default function CombinedIDCard({ ownership, person, site }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-        <button className="btn btn-sm" style={{ background: '#0f766e', color: '#fff', borderColor: '#0f766e' }} onClick={handleGeneratePreview} disabled={generating}>
-          {generating ? 'Generating...' : 'Generate Preview'}
-        </button>
         <button className="btn btn-sm" onClick={handleDownloadCombined} disabled={!previewUrl || generating || downloading}>
-          {downloading ? 'Preparing...' : 'Download Combined PNG'}
+          {generating ? 'Generating preview...' : downloading ? 'Preparing...' : 'Download Combined PNG'}
         </button>
       </div>
 
