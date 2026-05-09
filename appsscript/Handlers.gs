@@ -304,6 +304,40 @@
     appendRow(CONFIG.TABS.TRANSFERS, tObj, caller);
     writeAuditCreate(caller, 'Transfers', transferId, tObj);
 
+    // 6. Mirror transfer document in site attachments for easy access in UI
+    const docUrl = String(params.docRef || '').trim();
+    if (docUrl) {
+      const sites = sheetToObjects(CONFIG.TABS.SITES);
+      const site = sites.find(s => s.SiteID === params.siteId);
+      if (site) {
+        let attachments = [];
+        try {
+          const parsed = JSON.parse(site.AttachmentURLs || '[]');
+          if (Array.isArray(parsed)) attachments = parsed;
+        } catch (_) {
+          attachments = [];
+        }
+
+        const alreadyExists = attachments.some(a => String((a && a.url) || '').trim() === docUrl);
+        if (!alreadyExists) {
+          attachments.push({
+            label: 'Site Ownership Transfer Document',
+            url: docUrl,
+            type: 'pdf',
+            uploadedAt: transferDate,
+          });
+          const siteChanges = updateRowFields(
+            CONFIG.TABS.SITES,
+            'SiteID',
+            params.siteId,
+            { AttachmentURLs: JSON.stringify(attachments) },
+            caller
+          );
+          writeAuditChanges(caller, 'Sites', params.siteId, siteChanges);
+        }
+      }
+    }
+
     return { transferId, newOwnerId: newOwnerResult.ownerId, membershipNo, personId };
   }
 
