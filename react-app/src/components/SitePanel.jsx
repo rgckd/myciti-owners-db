@@ -486,6 +486,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
         <TransferModal
           siteId={siteId}
           fromOwner={currentOwners[0]}
+          currentOwners={currentOwners}
           onClose={() => setShowTransfer(false)}
           onSaved={() => { setShowTransfer(false); load(); onRefresh() }}
         />

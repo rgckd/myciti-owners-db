@@ -3,13 +3,11 @@ import { transferOwnership, uploadFileToDrive } from '../utils/api.js'
 import { formatDate } from '../utils/constants.js'
 import DateInput from './DateInput.jsx'
 
-const STEPS = ['Outgoing owner', 'Incoming person', 'Transfer details']
+const STEPS = ['Outgoing owners', 'Incoming owners', 'Transfer details']
 
-export default function TransferModal({ siteId, fromOwner, onClose, onSaved }) {
+export default function TransferModal({ siteId, fromOwner, currentOwners, onClose, onSaved }) {
   const [step, setStep] = useState(0)
-  const [newName, setNewName] = useState('')
-  const [newMobile, setNewMobile] = useState('')
-  const [newEmail, setNewEmail] = useState('')
+  const [newOwners, setNewOwners] = useState([{ fullName: '', mobile1: '', email: '' }])
   const [transferDate, setTransferDate] = useState(new Date().toISOString().split('T')[0])
   const [salePrice, setSalePrice] = useState('')
   const [docRef, setDocRef] = useState('')
@@ -18,6 +16,8 @@ export default function TransferModal({ siteId, fromOwner, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef(null)
+
+  const outgoingOwners = currentOwners && currentOwners.length > 0 ? currentOwners : (fromOwner ? [fromOwner] : [])
 
   async function handleDocUpload(e) {
     const file = e.target.files?.[0]
@@ -35,21 +35,38 @@ export default function TransferModal({ siteId, fromOwner, onClose, onSaved }) {
 
   async function handleSave() {
     if (!transferDate) { setError('Transfer date is required'); return }
+    if (newOwners.some(o => !o.fullName || !o.mobile1)) { setError('All new owners must have full name and mobile'); return }
     if (!docRef) { setError('Please upload the transfer document before completing'); return }
     setSaving(true); setError('')
     try {
       await transferOwnership({
         siteId,
-        fromOwnerId: fromOwner?.OwnerID,
+        fromOwnerIds: outgoingOwners.map(o => o.OwnerID),
         transferDate,
         salePrice: salePrice ? Number(salePrice) : '',
         docRef,
-        newPerson: { fullName: newName, mobile1: newMobile, email: newEmail }
+        newPersons: newOwners
       })
       onSaved()
     } catch (e) {
       setError(e.message)
     } finally { setSaving(false) }
+  }
+
+  function addNewOwner() {
+    setNewOwners(prev => [...prev, { fullName: '', mobile1: '', email: '' }])
+  }
+
+  function removeNewOwner(index) {
+    setNewOwners(prev => prev.filter((_, i) => i !== index))
+  }
+
+  function updateNewOwner(index, field, value) {
+    setNewOwners(prev => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], [field]: value }
+      return updated
+    })
   }
 
   return (
@@ -89,35 +106,84 @@ export default function TransferModal({ siteId, fromOwner, onClose, onSaved }) {
         <div style={{ padding: '14px 18px', minHeight: 180 }}>
           {step === 0 && (
             <div>
-              <div className="label">Outgoing owner</div>
-              <div style={{ padding: '12px', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontWeight: 500 }}>{fromOwner?.person?.FullName || '—'}</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
-                  {fromOwner?.MembershipNo || 'Non-member'} · {fromOwner?.person?.Mobile1 || '—'}
-                </div>
+              <div className="label">Outgoing owners ({outgoingOwners.length})</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {outgoingOwners.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>No current owners</div>
+                ) : (
+                  outgoingOwners.map((owner, idx) => (
+                    <div key={idx} style={{ padding: '12px', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}>
+                      <div style={{ fontWeight: 500 }}>{owner?.person?.FullName || '—'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
+                        {owner?.MembershipNo || 'Non-member'} · {owner?.person?.Mobile1 || '—'}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
               <p style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 12 }}>
-                This person will stop being recorded as the owner of this site. Their ownership will be marked as ended on the transfer date you set in step 3.
+                All current owners will stop being recorded as owners of this site. Their ownership will be marked as ended on the transfer date you set in step 3.
               </p>
             </div>
           )}
 
           {step === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label className="label">Full name *</label>
-                <input className="input" value={newName} onChange={e => setNewName(e.target.value)} placeholder="New owner's full name" />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div className="label">Incoming owners</div>
+                  <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{newOwners.length} owner(s)</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {newOwners.map((owner, idx) => (
+                    <div key={idx} style={{ padding: '10px', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-2)' }}>Owner {idx + 1}</span>
+                        {newOwners.length > 1 && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 11, color: 'var(--disputed)' }}
+                            onClick={() => removeNewOwner(idx)}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        className="input"
+                        placeholder="Full name *"
+                        value={owner.fullName}
+                        onChange={e => updateNewOwner(idx, 'fullName', e.target.value)}
+                        style={{ fontSize: 12 }}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Mobile (10-digit) *"
+                        value={owner.mobile1}
+                        onChange={e => updateNewOwner(idx, 'mobile1', e.target.value)}
+                        style={{ fontSize: 12 }}
+                      />
+                      <input
+                        className="input"
+                        type="email"
+                        placeholder="Email (optional)"
+                        value={owner.email}
+                        onChange={e => updateNewOwner(idx, 'email', e.target.value)}
+                        style={{ fontSize: 12 }}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="label">Mobile *</label>
-                <input className="input" value={newMobile} onChange={e => setNewMobile(e.target.value)} placeholder="10-digit mobile" />
-              </div>
-              <div>
-                <label className="label">Email</label>
-                <input className="input" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Optional" />
-              </div>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={addNewOwner}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                + Add another owner
+              </button>
               <p style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                A new membership number will be auto-assigned.
+                New membership numbers will be auto-assigned for each owner.
               </p>
             </div>
           )}
