@@ -232,10 +232,10 @@ function drawFrontCard(ctx, payload, x, y, qrImg, sealImg) {
   ctx.fillText('MyCiti', qrX + 24, qrY + qrSize + 58)
 
   if (sealImg) {
-    const sealW = CARD_W * 0.50
+    const sealW = CARD_H * 0.54
     const sealH = sealW
-    const sealX = x + CARD_W * 0.30
-    const sealY = y + CARD_H * 0.33
+    const sealX = x + CARD_W * 0.36
+    const sealY = y + CARD_H * 0.18
     ctx.save()
     ctx.globalAlpha = 0.24
     ctx.drawImage(sealImg, sealX, sealY, sealW, sealH)
