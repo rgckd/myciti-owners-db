@@ -3,6 +3,7 @@ import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES, SITE_TYPES, SITE_TYPE_SQFT } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
+import IDCard from './IDCard.jsx'
 
 const TABS = ['Overview', 'Payments', 'Call log', 'Attachments']
 
@@ -32,6 +33,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [showSiteEdit, setShowSiteEdit] = useState(false)
   const [siteEditData, setSiteEditData] = useState({})
   const [savingSite, setSavingSite] = useState(false)
+  const [idCardOwner, setIdCardOwner] = useState(null)
 
   const fetchedTabs = useRef(new Set())
 
@@ -313,7 +315,13 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
               {currentOwners.length === 0 ? (
                 <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>No owner recorded</div>
               ) : currentOwners.map(o => (
-                <OwnerRow key={o.OwnerID} owner={o} role={role} onRefresh={load} />
+                <OwnerRow
+                  key={o.OwnerID}
+                  owner={o}
+                  role={role}
+                  onRefresh={load}
+                  onGenerateIdCard={setIdCardOwner}
+                />
               ))}
               {canEdit(role, 'owners') && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
@@ -512,6 +520,14 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
           onSaved={() => { setSelectedPayment(null); load() }}
         />
       )}
+
+      {idCardOwner && (
+        <IDCardModal
+          ownership={idCardOwner}
+          person={idCardOwner.person}
+          onClose={() => setIdCardOwner(null)}
+        />
+      )}
     </PanelShell>
   )
 }
@@ -568,7 +584,7 @@ function RemoveOwnerButton({ owner, onRefresh }) {
   )
 }
 
-function OwnerRow({ owner, role, onRefresh }) {
+function OwnerRow({ owner, role, onRefresh, onGenerateIdCard }) {
   const p = owner.person || {}
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -792,14 +808,52 @@ function OwnerRow({ owner, role, onRefresh }) {
             {p.Email && <InfoRow label="Email" value={p.Email} />}
             {owner.NominatedContact && <InfoRow label="Contact" value={owner.NominatedContact} />}
           </div>
-          {canEdit(role, 'owners') && (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={startEdit}>Edit</button>
-              <RemoveOwnerButton owner={owner} onRefresh={onRefresh} />
+          {(owner.MembershipNo || canEdit(role, 'owners')) && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {owner.MembershipNo && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: 11 }}
+                  onClick={e => {
+                    e.stopPropagation()
+                    onGenerateIdCard?.(owner)
+                  }}
+                >
+                  Generate ID card
+                </button>
+              )}
+              {canEdit(role, 'owners') && (
+                <>
+                  <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={startEdit}>Edit</button>
+                  <RemoveOwnerButton owner={owner} onRefresh={onRefresh} />
+                </>
+              )}
             </div>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function IDCardModal({ ownership, person, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: 20
+    }}>
+      <div style={{
+        background: 'var(--surface)', borderRadius: 'var(--radius-xl)',
+        padding: 24, maxWidth: 520, width: '100%',
+        border: '1px solid var(--border)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontWeight: 600 }}>Membership ID Card</div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <IDCard ownership={ownership} person={person} />
+      </div>
     </div>
   )
 }
