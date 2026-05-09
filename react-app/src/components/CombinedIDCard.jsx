@@ -17,7 +17,7 @@ Email: mycitiownersassociation@gmail.com
 Property of MCOA - Not transferable
 ID card must be shown at the MyCiti gate during site visit`
 
-export default function CombinedIDCard({ ownership, person }) {
+export default function CombinedIDCard({ ownership, person, site }) {
   const canvasRef = useRef(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [status, setStatus] = useState('')
@@ -29,22 +29,23 @@ export default function CombinedIDCard({ ownership, person }) {
   const payload = useMemo(() => {
     const memberName = person?.FullName || ''
     const memberId = String(ownership?.MembershipNo || '')
-    const phase = String(ownership?.site?.Phase || '')
-    const site = String(ownership?.site?.SiteNo || '')
+    const phase = String(ownership?.site?.Phase || ownership?.Phase || site?.Phase || '')
+    const siteNo = String(ownership?.site?.SiteNo || ownership?.SiteNo || site?.SiteNo || '')
     const phone = person?.Mobile1 || person?.Mobile2 || '-'
     return {
       memberName,
       memberId,
       phase,
-      site,
+      site: siteNo,
       phone,
       memberSince: formatMemberSince(ownership?.MemberSince),
       issuedText: getCurrentIssuedText(),
       frontTitle: FRONT_TITLE,
       backText: BACK_TEXT,
       qrDataUrl: `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(`ID:${memberId},Name:${memberName}`)}`,
+      sealDataUrl: '/myciti-seal.jpeg',
     }
-  }, [ownership, person])
+  }, [ownership, person, site])
 
   async function handleGeneratePreview() {
     if (!payload.memberId || !payload.phase || !payload.site) {
@@ -162,13 +163,16 @@ async function renderCombinedCanvas(canvas, payload) {
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-  const qrImg = await loadImage(payload.qrDataUrl)
+  const [qrImg, sealImg] = await Promise.all([
+    loadImage(payload.qrDataUrl),
+    loadImage(payload.sealDataUrl),
+  ])
 
   const x = OUTER_PAD
   const frontY = OUTER_PAD
   const backY = OUTER_PAD + CARD_H + GAP
 
-  drawFrontCard(ctx, payload, x, frontY, qrImg)
+  drawFrontCard(ctx, payload, x, frontY, qrImg, sealImg)
   drawBackCard(ctx, payload, x, backY)
   drawCutMarks(ctx, x, frontY, CARD_W, CARD_H)
   drawCutMarks(ctx, x, backY, CARD_W, CARD_H)
@@ -176,7 +180,7 @@ async function renderCombinedCanvas(canvas, payload) {
   return canvas.toDataURL('image/png')
 }
 
-function drawFrontCard(ctx, payload, x, y, qrImg) {
+function drawFrontCard(ctx, payload, x, y, qrImg, sealImg) {
   const headerH = 52
   const qrSize = 160
   const logoH = 74
@@ -226,7 +230,18 @@ function drawFrontCard(ctx, payload, x, y, qrImg) {
   ctx.font = '600 34px Segoe UI, Arial, sans-serif'
   ctx.fillText('MyCiti', qrX + 24, qrY + qrSize + 58)
 
-  drawSealWatermark(ctx, x, y)
+  if (sealImg) {
+    const sealW = CARD_W * 0.50
+    const sealH = sealW
+    const sealX = x + CARD_W * 0.30
+    const sealY = y + CARD_H * 0.33
+    ctx.save()
+    ctx.globalAlpha = 0.24
+    ctx.drawImage(sealImg, sealX, sealY, sealW, sealH)
+    ctx.restore()
+  } else {
+    drawSealWatermark(ctx, x, y)
+  }
 
   ctx.fillStyle = '#111827'
   ctx.font = '400 26px Segoe UI, Arial, sans-serif'

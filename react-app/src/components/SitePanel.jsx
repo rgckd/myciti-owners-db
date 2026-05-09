@@ -525,6 +525,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
         <IDCardModal
           ownership={idCardOwner}
           person={idCardOwner.person}
+          site={site}
           onClose={() => setIdCardOwner(null)}
         />
       )}
@@ -836,7 +837,7 @@ function OwnerRow({ owner, role, onRefresh, onGenerateIdCard }) {
   )
 }
 
-function IDCardModal({ ownership, person, onClose }) {
+function IDCardModal({ ownership, person, site, onClose }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
@@ -852,7 +853,7 @@ function IDCardModal({ ownership, person, onClose }) {
           <div style={{ fontWeight: 600, fontSize: 28, lineHeight: 1.1 }}>Single Site ID Card</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
-        <CombinedIDCard ownership={ownership} person={person} />
+        <CombinedIDCard ownership={ownership} person={person} site={site} />
       </div>
     </div>
   )
