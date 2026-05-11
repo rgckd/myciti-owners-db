@@ -2,6 +2,15 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { getSites, getPaymentHeads, createPayment, uploadFileToDrive } from '../utils/api.js'
 import { PAYMENT_MODES, formatCurrency } from '../utils/constants.js'
 import { getSitesCache } from '../pages/SiteRegistry.jsx'
+import DateInput from './DateInput.jsx'
+
+function todayYmdLocal() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [], onClose, onSaved }) {
   const [heads, setHeads] = useState([])
@@ -10,7 +19,7 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
   const [selectedHeadId, setSelectedHeadId] = useState('')
   const [amount, setAmount] = useState('')
   const [mode, setMode] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(todayYmdLocal())
   const [receiptNo, setReceiptNo] = useState('')
   const [bankRef, setBankRef] = useState('')
   const [proofUrl, setProofUrl] = useState('')
@@ -18,7 +27,6 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef(null)
-  const dateInputRef = useRef(null)
 
   // Site picker state (only used when not pre-filled)
   const [sitePhase, setSitePhase] = useState('All')
@@ -235,18 +243,7 @@ export default function PaymentModal({ siteId: prefillSiteId, siteNo, owners = [
             </div>
             <div>
               <label className="label">Transaction date *</label>
-              <div style={{ position: 'relative' }}>
-                <div className="input" style={{ cursor: 'pointer', color: date ? 'inherit' : 'var(--ink-3)' }}>
-                  {date ? date.split('-').reverse().join('/') : 'DD/MM/YYYY'}
-                </div>
-                <input
-                  ref={dateInputRef}
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%' }}
-                />
-              </div>
+              <DateInput value={date} onChange={setDate} />
             </div>
           </div>
 

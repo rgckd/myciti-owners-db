@@ -3,6 +3,7 @@ import { getPayments, getPaymentHeads, getSites, updatePayment, deletePayment, u
 import { useAuth } from '../context/AuthContext.jsx'
 import { canEdit, formatCurrency, formatDate } from '../utils/constants.js'
 import PaymentModal from '../components/PaymentModal.jsx'
+import DateInput from '../components/DateInput.jsx'
 import { PAYMENT_MODES } from '../utils/constants.js'
 
 export default function PaymentsView() {
@@ -227,25 +228,6 @@ export default function PaymentsView() {
   )
 }
 
-function DateField({ value, onChange }) {
-  const ref = useRef(null)
-  const display = value ? value.split('-').reverse().join('/') : ''
-  return (
-    <div style={{ position: 'relative' }}>
-      <div className="input" style={{ cursor: 'pointer', color: display ? 'inherit' : 'var(--ink-3)' }}>
-        {display || 'DD/MM/YYYY'}
-      </div>
-      <input
-        ref={ref}
-        type="date"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%' }}
-      />
-    </div>
-  )
-}
-
 function toDateInput(val) {
   if (!val) return ''
   const s = String(val)
@@ -261,6 +243,7 @@ function toDateInput(val) {
 
 function EditPaymentModal({ payment, heads, sites, onClose, onSaved }) {
   const [amount, setAmount]   = useState(String(payment.Amount || ''))
+  const [selectedHeadId, setSelectedHeadId] = useState(payment.HeadID || '')
   const [mode, setMode]       = useState(payment.Mode || '')
   const [date, setDate]       = useState(toDateInput(payment.PaymentDate))
   const [receiptNo, setReceiptNo] = useState(payment.ReceiptNo || '')
@@ -304,9 +287,19 @@ function EditPaymentModal({ payment, heads, sites, onClose, onSaved }) {
     finally { setUploading(false) }
   }
 
-  const headName = heads.find(h => h.HeadID === payment.HeadID)?.HeadName || payment.HeadID
+  const headOptions = useMemo(() => {
+    const list = Array.isArray(heads) ? [...heads] : []
+    if (payment.HeadID && !list.some(h => h.HeadID === payment.HeadID)) {
+      list.unshift({ HeadID: payment.HeadID, HeadName: payment.HeadID, IsActive: 'FALSE' })
+    }
+    return list
+  }, [heads, payment.HeadID])
 
   async function handleSave() {
+    if (!selectedHeadId) {
+      setError('Payment head is required')
+      return
+    }
     setSaving(true); setError('')
     try {
       let selectedSiteId = payment.SiteID || ''
@@ -327,6 +320,7 @@ function EditPaymentModal({ payment, heads, sites, onClose, onSaved }) {
       await updatePayment({
         paymentId: payment.PaymentID,
         SiteID: selectedSiteId,
+        HeadID: selectedHeadId,
         Amount: Number(amount),
         Mode: mode,
         PaymentDate: date,
@@ -407,7 +401,12 @@ function EditPaymentModal({ payment, heads, sites, onClose, onSaved }) {
 
           <div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 4 }}>Payment head</div>
-            <div style={{ fontSize: 13, fontWeight: 500 }}>{headName}</div>
+            <select className="input" value={selectedHeadId} onChange={e => setSelectedHeadId(e.target.value)}>
+              <option value="">Select payment head</option>
+              {headOptions.map(h => (
+                <option key={h.HeadID} value={h.HeadID}>{h.HeadName}</option>
+              ))}
+            </select>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -417,7 +416,7 @@ function EditPaymentModal({ payment, heads, sites, onClose, onSaved }) {
             </div>
             <div>
               <label className="label">Transaction date</label>
-              <DateField value={date} onChange={setDate} />
+              <DateInput value={date} onChange={setDate} />
             </div>
           </div>
 
