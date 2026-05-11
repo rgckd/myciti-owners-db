@@ -203,7 +203,7 @@ export default function PaymentsView() {
                 position: 'sticky', top: 0,
                 background: 'var(--surface-2)', borderBottom: '1px solid var(--border)'
               }}>
-                {['Flag','Date','Site','Head','Amount','Mode','Bank ref / UTR','Recorded'].map(h => (
+                {['Flag','Transaction date','Site','Head','Amount','Mode','Bank ref / UTR','Recorded'].map(h => (
                   <th key={h} style={{
                     padding: '10px 8px', textAlign: 'left', fontWeight: 500,
                     color: 'var(--ink-2)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden'
