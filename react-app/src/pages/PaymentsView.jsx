@@ -66,9 +66,6 @@ export default function PaymentsView() {
           p.SiteID,
           p.Phase,
           p.OwnerName,
-          p.HeadID,
-          headLookup[p.HeadID] || p.HeadID,
-          p.Amount,
           p.Mode,
           p.BankRef,
           p.ReceiptNo,
@@ -112,7 +109,7 @@ export default function PaymentsView() {
                 setSearchQuery(searchInput)
               }
             }}
-            placeholder="Search site, owner, bank ref/UTR, receipt no, head, amount..."
+            placeholder="Search site, owner, bank ref/UTR, receipt no..."
           />
           {!!(searchInput || searchQuery) && (
             <button
@@ -487,9 +484,8 @@ function EditPaymentModal({ payment, heads, sites, onClose, onSaved }) {
               <input className="input" type="number" value={amount} onChange={e => setAmount(e.target.value)} />
             </div>
             <div>
-              <label className="label">Transaction date</label>
+              <label className="label">Transaction date (dd/mm/yyyy)</label>
               <DateInput value={date} onChange={setDate} />
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>Use dd/mm/yyyy</div>
             </div>
           </div>
 
