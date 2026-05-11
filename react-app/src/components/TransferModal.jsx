@@ -35,13 +35,15 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
 
   async function handleSave() {
     if (!transferDate) { setError('Transfer date is required'); return }
+    const ownerIds = outgoingOwners.map(o => o?.OwnerID).filter(Boolean)
+    if (ownerIds.length === 0) { setError('No valid outgoing owner records found for this site'); return }
     if (newOwners.some(o => !o.fullName || !o.mobile1)) { setError('All new owners must have full name and mobile'); return }
     if (!docRef) { setError('Please upload the transfer document before completing'); return }
     setSaving(true); setError('')
     try {
       await transferOwnership({
         siteId,
-        fromOwnerIds: outgoingOwners.map(o => o.OwnerID),
+        fromOwnerIds: ownerIds,
         transferDate,
         salePrice: salePrice ? Number(salePrice) : '',
         docRef,

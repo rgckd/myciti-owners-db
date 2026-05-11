@@ -266,43 +266,93 @@
   function transferOwnership(params, caller) {
     const transferDate = params.transferDate || NOW_ISO().split('T')[0];
 
-    // 1. Flip outgoing owner to IsCurrent = FALSE
-    const outChanges = updateRowFields(CONFIG.TABS.OWNERS, 'OwnerID', params.fromOwnerId, {
-      IsCurrent: 'FALSE',
-      OwnershipEndDate: transferDate
-    }, caller);
-    writeAuditChanges(caller, 'Owners', params.fromOwnerId, outChanges);
-
-    // 2. Create new person if needed
-    let personId = params.personId;
-    if (!personId) {
-      const pResult = createPerson(params.newPerson, caller);
-      personId = pResult.personId;
+    const fromOwnerIds = Array.isArray(params.fromOwnerIds)
+      ? params.fromOwnerIds
+      : (params.fromOwnerId ? [params.fromOwnerId] : []);
+    const cleanFromOwnerIds = fromOwnerIds
+      .map(id => String(id || '').trim())
+      .filter(Boolean);
+    if (cleanFromOwnerIds.length === 0) {
+      throw new Error('fromOwnerIds (or fromOwnerId) is required');
     }
 
-    // 3. Generate membership number
-    const membershipNo = params.membershipNo || nextMembershipNo();
+    const newPersons = Array.isArray(params.newPersons)
+      ? params.newPersons
+      : (params.newPerson ? [params.newPerson] : []);
+    if (newPersons.length === 0 && !params.personId) {
+      throw new Error('newPersons (or newPerson/personId) is required');
+    }
 
-    // 4. Create new owner row
-    const newOwnerResult = createOwner({
-      siteId: params.siteId, personId,
-      membershipNo, memberSince: transferDate,
-      ownershipStartDate: transferDate,
-      nominatedContact: params.nominatedContact || '',
-      status: 'Active'
-    }, caller);
+    // 1. Flip all outgoing owners to IsCurrent = FALSE
+    cleanFromOwnerIds.forEach(ownerId => {
+      const outChanges = updateRowFields(CONFIG.TABS.OWNERS, 'OwnerID', ownerId, {
+        IsCurrent: 'FALSE',
+        OwnershipEndDate: transferDate
+      }, caller);
+      writeAuditChanges(caller, 'Owners', ownerId, outChanges);
+    });
 
-    // 5. Write transfer record
-    const transferId = nextId('T', CONFIG.TABS.TRANSFERS, 'TransferID');
-    const tObj = {
-      TransferID: transferId, SiteID: params.siteId,
-      FromOwnerID: params.fromOwnerId, ToOwnerID: newOwnerResult.ownerId,
-      TransferDate: transferDate,
-      SalePrice: params.salePrice || '', DocRef: params.docRef || '',
-      RecordedBy: caller.email, RecordedAt: NOW_ISO()
-    };
-    appendRow(CONFIG.TABS.TRANSFERS, tObj, caller);
-    writeAuditCreate(caller, 'Transfers', transferId, tObj);
+    // 2. Create incoming owners (supports one or many)
+    const incoming = [];
+    if (params.personId) {
+      incoming.push({
+        personId: params.personId,
+        membershipNo: params.membershipNo || '',
+        nominatedContact: params.nominatedContact || ''
+      });
+    }
+    newPersons.forEach(p => {
+      incoming.push(p || {});
+    });
+
+    const createdOwners = incoming.map((personLike, idx) => {
+      let personId = personLike.personId || '';
+      if (!personId) {
+        if (!personLike.fullName || !personLike.mobile1) {
+          throw new Error(`Incoming owner ${idx + 1} must include fullName and mobile1`);
+        }
+        const pResult = createPerson(personLike, caller);
+        personId = pResult.personId;
+      }
+
+      // Legacy single-transfer payload may pass one membershipNo for the first incoming owner.
+      const membershipNo =
+        personLike.membershipNo ||
+        (idx === 0 ? (params.membershipNo || '') : '') ||
+        nextMembershipNo();
+
+      const newOwnerResult = createOwner({
+        siteId: params.siteId,
+        personId,
+        membershipNo,
+        memberSince: personLike.memberSince || transferDate,
+        ownershipStartDate: transferDate,
+        nominatedContact: personLike.nominatedContact || params.nominatedContact || '',
+        status: 'Active'
+      }, caller);
+
+      return { ownerId: newOwnerResult.ownerId, personId, membershipNo };
+    });
+
+    // 3. Write transfer record(s). For multi-owner transfers, keep all outgoing owner IDs in FromOwnerID.
+    const fromOwnerRef = cleanFromOwnerIds.join(',');
+    const transferIds = createdOwners.map(created => {
+      const transferId = nextId('T', CONFIG.TABS.TRANSFERS, 'TransferID');
+      const tObj = {
+        TransferID: transferId,
+        SiteID: params.siteId,
+        FromOwnerID: fromOwnerRef,
+        ToOwnerID: created.ownerId,
+        TransferDate: transferDate,
+        SalePrice: params.salePrice || '',
+        DocRef: params.docRef || '',
+        RecordedBy: caller.email,
+        RecordedAt: NOW_ISO()
+      };
+      appendRow(CONFIG.TABS.TRANSFERS, tObj, caller);
+      writeAuditCreate(caller, 'Transfers', transferId, tObj);
+      return transferId;
+    });
 
     // 6. Mirror transfer document in site attachments for easy access in UI
     const docUrl = String(params.docRef || '').trim();
@@ -338,7 +388,17 @@
       }
     }
 
-    return { transferId, newOwnerId: newOwnerResult.ownerId, membershipNo, personId };
+    return {
+      transferId: transferIds[0] || '',
+      transferIds,
+      fromOwnerIds: cleanFromOwnerIds,
+      newOwnerId: createdOwners[0] ? createdOwners[0].ownerId : '',
+      newOwnerIds: createdOwners.map(o => o.ownerId),
+      membershipNo: createdOwners[0] ? createdOwners[0].membershipNo : '',
+      membershipNos: createdOwners.map(o => o.membershipNo),
+      personId: createdOwners[0] ? createdOwners[0].personId : '',
+      personIds: createdOwners.map(o => o.personId)
+    };
   }
 
   // ─── AGENTS ──────────────────────────────────────────────────────────────────
