@@ -101,31 +101,47 @@ export default function PaymentsView() {
         display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0
       }}>
         <h1 style={{ fontSize: 15, fontWeight: 600, flex: 1 }}>Payments</h1>
-        <input
-          className="input"
-          style={{ minWidth: 300, flex: '0 1 420px' }}
-          value={searchInput}
-          onChange={e => setSearchInput(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              setSearchQuery(searchInput)
-            }
-          }}
-          placeholder="Search site, owner, bank ref/UTR, receipt no, head, amount... (press Enter)"
-        />
+        <div style={{ minWidth: 300, flex: '0 1 420px', position: 'relative' }}>
+          <input
+            className="input"
+            style={{ width: '100%', paddingRight: 34 }}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                setSearchQuery(searchInput)
+              }
+            }}
+            placeholder="Search site, owner, bank ref/UTR, receipt no, head, amount..."
+          />
+          {!!(searchInput || searchQuery) && (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => { setSearchInput(''); setSearchQuery('') }}
+              title="Clear search"
+              aria-label="Clear search"
+              style={{
+                position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+                minWidth: 24, width: 24, height: 24, padding: 0, lineHeight: 1, borderRadius: 999
+              }}
+            >
+              x
+            </button>
+          )}
+        </div>
         <button
           className="btn btn-ghost"
           onClick={() => setSearchQuery(searchInput)}
+          disabled={!hasPendingSearch}
           title="Apply search"
           aria-label="Apply search"
+          style={{ minWidth: 36, width: 36, padding: 0, fontSize: 15, lineHeight: 1 }}
         >
-          Search
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <path d="M20 20L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
         </button>
-        {hasPendingSearch && (
-          <span style={{ fontSize: 11, color: 'var(--partial)', whiteSpace: 'nowrap' }}>
-            Search not applied
-          </span>
-        )}
         <select className="input" style={{ width: 'auto' }}
           value={headFilter} onChange={e => setHeadFilter(e.target.value)}>
           <option value="">All heads</option>
@@ -473,6 +489,7 @@ function EditPaymentModal({ payment, heads, sites, onClose, onSaved }) {
             <div>
               <label className="label">Transaction date</label>
               <DateInput value={date} onChange={setDate} />
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>Use dd/mm/yyyy</div>
             </div>
           </div>
 
