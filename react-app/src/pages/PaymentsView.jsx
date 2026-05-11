@@ -19,6 +19,8 @@ export default function PaymentsView() {
   const [headFilter, setHeadFilter] = useState('')
   const [modeFilter, setModeFilter] = useState('')
   const [flaggedOnly, setFlaggedOnly] = useState(false)
+  const [searchInput, setSearchInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -44,20 +46,49 @@ export default function PaymentsView() {
 
   useEffect(() => { load() }, [load])
 
+  const headLookup = useMemo(() => {
+    const map = {}
+    heads.forEach(h => { map[h.HeadID] = h.HeadName || h.HeadID })
+    return map
+  }, [heads])
+
   const filtered = useMemo(() => {
     let list = payments
     if (headFilter) list = list.filter(p => p.HeadID === headFilter)
     if (modeFilter) list = list.filter(p => p.Mode === modeFilter)
     if (flaggedOnly) list = list.filter(p => p.FlaggedForAttention === 'TRUE' || p.FlaggedForAttention === true)
+    const q = searchQuery.trim().toLowerCase()
+    if (q) {
+      list = list.filter(p => {
+        const haystack = [
+          p.PaymentID,
+          p.SiteNo,
+          p.SiteID,
+          p.Phase,
+          p.OwnerName,
+          p.HeadID,
+          headLookup[p.HeadID] || p.HeadID,
+          p.Amount,
+          p.Mode,
+          p.BankRef,
+          p.ReceiptNo,
+          p.RecordedBy,
+          p.PaymentDate,
+          formatDate(p.PaymentDate),
+          formatDate(p.RecordedAt),
+          p.FlagComment,
+        ].filter(Boolean).join(' ').toLowerCase()
+        return haystack.includes(q)
+      })
+    }
     return list
-  }, [payments, headFilter, modeFilter, flaggedOnly])
+  }, [payments, headFilter, modeFilter, flaggedOnly, searchQuery, headLookup])
 
   const total = filtered.reduce((s, p) => s + Number(p.Amount || 0), 0)
   const modes = [...new Set(payments.map(p => p.Mode).filter(Boolean))]
+  const hasPendingSearch = searchInput.trim() !== searchQuery.trim()
 
-  function headName(id) {
-    return heads.find(h => h.HeadID === id)?.HeadName || id
-  }
+  function headName(id) { return headLookup[id] || id }
 
   const canEditPayments = canEdit(role, 'payments')
 
@@ -70,6 +101,31 @@ export default function PaymentsView() {
         display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0
       }}>
         <h1 style={{ fontSize: 15, fontWeight: 600, flex: 1 }}>Payments</h1>
+        <input
+          className="input"
+          style={{ minWidth: 300, flex: '0 1 420px' }}
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              setSearchQuery(searchInput)
+            }
+          }}
+          placeholder="Search site, owner, bank ref/UTR, receipt no, head, amount... (press Enter)"
+        />
+        <button
+          className="btn btn-ghost"
+          onClick={() => setSearchQuery(searchInput)}
+          title="Apply search"
+          aria-label="Apply search"
+        >
+          Search
+        </button>
+        {hasPendingSearch && (
+          <span style={{ fontSize: 11, color: 'var(--partial)', whiteSpace: 'nowrap' }}>
+            Search not applied
+          </span>
+        )}
         <select className="input" style={{ width: 'auto' }}
           value={headFilter} onChange={e => setHeadFilter(e.target.value)}>
           <option value="">All heads</option>
@@ -103,9 +159,9 @@ export default function PaymentsView() {
       }}>
         <span>{filtered.length} payments</span>
         <span style={{ fontWeight: 600, color: 'var(--paid)' }}>{formatCurrency(total)} total</span>
-        {(headFilter || modeFilter || flaggedOnly) && (
+        {(headFilter || modeFilter || flaggedOnly || searchQuery.trim() || searchInput.trim()) && (
           <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}
-            onClick={() => { setHeadFilter(''); setModeFilter(''); setFlaggedOnly(false) }}>
+            onClick={() => { setSearchInput(''); setSearchQuery(''); setHeadFilter(''); setModeFilter(''); setFlaggedOnly(false) }}>
             Clear filters
           </button>
         )}
