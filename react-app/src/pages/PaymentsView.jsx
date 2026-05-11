@@ -484,7 +484,7 @@ function EditPaymentModal({ payment, heads, sites, onClose, onSaved }) {
               <input className="input" type="number" value={amount} onChange={e => setAmount(e.target.value)} />
             </div>
             <div>
-              <label className="label">Transaction date (dd/mm/yyyy)</label>
+              <label className="label">Transaction date</label>
               <DateInput value={date} onChange={setDate} />
             </div>
           </div>
