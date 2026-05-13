@@ -417,9 +417,19 @@
   }
 
   function updateAgent(params, caller) {
-    const allowed = ['Name','Mobile','Email','PhotoURL','IDProofURLs','Notes'];
+    // Accept both camelCase API payload keys and sheet-column style keys.
+    const fieldMap = {
+      Name: params.Name !== undefined ? params.Name : params.name,
+      Mobile: params.Mobile !== undefined ? params.Mobile : params.mobile,
+      Email: params.Email !== undefined ? params.Email : params.email,
+      PhotoURL: params.PhotoURL !== undefined ? params.PhotoURL : params.photoUrl,
+      IDProofURLs: params.IDProofURLs !== undefined ? params.IDProofURLs : params.idProofUrls,
+      Notes: params.Notes !== undefined ? params.Notes : params.notes
+    };
     const fields = {};
-    allowed.forEach(f => { if (params[f] !== undefined) fields[f] = params[f]; });
+    Object.keys(fieldMap).forEach(function(k) {
+      if (fieldMap[k] !== undefined) fields[k] = fieldMap[k];
+    });
     const changes = updateRowFields(CONFIG.TABS.AGENTS, 'AgentID', params.agentId, fields, caller);
     writeAuditChanges(caller, 'Agents', params.agentId, changes);
     return { updated: true };
