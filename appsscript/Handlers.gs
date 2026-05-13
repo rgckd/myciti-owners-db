@@ -509,9 +509,19 @@
       const existingPays = sheetToObjects(CONFIG.TABS.PAYMENTS).filter(p => p.HeadID === params.headId);
       if (existingPays.length > 0) throw new Error('Cannot change AmountType after payments have been recorded');
     }
-    const allowed = ['HeadName','ExpectedAmountFlat','ExpectedAmountPerSqft','DueDate','IsActive','Notes'];
+    // Frontend sends camelCase payload keys; map them to sheet column names.
+    const fieldMap = {
+      HeadName: params.HeadName !== undefined ? params.HeadName : params.headName,
+      ExpectedAmountFlat: params.ExpectedAmountFlat !== undefined ? params.ExpectedAmountFlat : params.expectedAmountFlat,
+      ExpectedAmountPerSqft: params.ExpectedAmountPerSqft !== undefined ? params.ExpectedAmountPerSqft : params.expectedAmountPerSqft,
+      DueDate: params.DueDate !== undefined ? params.DueDate : params.dueDate,
+      IsActive: params.IsActive !== undefined ? params.IsActive : params.isActive,
+      Notes: params.Notes !== undefined ? params.Notes : params.notes
+    };
     const fields = {};
-    allowed.forEach(f => { if (params[f] !== undefined) fields[f] = params[f]; });
+    Object.keys(fieldMap).forEach(function(k) {
+      if (fieldMap[k] !== undefined) fields[k] = fieldMap[k];
+    });
     const changes = updateRowFields(CONFIG.TABS.PAYMENT_HEADS, 'HeadID', params.headId, fields, caller);
     writeAuditChanges(caller, 'PaymentHeads', params.headId, changes);
     return { updated: true };
