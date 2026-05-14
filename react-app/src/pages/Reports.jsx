@@ -84,9 +84,9 @@ function SitesReport() {
   const [loading, setLoading] = useState(true)
 
   const [phase, setPhase] = useState('All')
-  const [siteType, setSiteType] = useState('All')
   const [status, setStatus] = useState('All')
   const [membersOnly, setMembersOnly] = useState(false)
+  const [nonMembersOnly, setNonMembersOnly] = useState(false)
   const [flaggedOnly, setFlaggedOnly] = useState(false)
   const [sortBy, setSortBy] = useState('siteNo')
 
@@ -124,9 +124,9 @@ function SitesReport() {
     })
 
     if (phase !== 'All') list = list.filter(s => String(s.Phase) === phase)
-    if (siteType !== 'All') list = list.filter(s => s.SiteType === siteType)
     if (status !== 'All') list = list.filter(s => s.payStatus === status)
     if (membersOnly) list = list.filter(s => s.membershipNo)
+    if (nonMembersOnly) list = list.filter(s => !s.membershipNo)
     if (flaggedOnly) list = list.filter(s => s.FlaggedForAttention === 'TRUE')
 
     list.sort((a, b) => {
@@ -137,7 +137,7 @@ function SitesReport() {
       return 0
     })
     return list
-  }, [sites, activeHeads, payMap, phase, siteType, status, membersOnly, flaggedOnly, sortBy])
+  }, [sites, activeHeads, payMap, phase, status, membersOnly, nonMembersOnly, flaggedOnly, sortBy])
 
   function handleDownload() {
     const headers = [
@@ -177,17 +177,33 @@ function SitesReport() {
           options={[{value:'All',label:'All'},{value:'1',label:'Ph 1'},{value:'2',label:'Ph 2'}]}
           value={phase} onChange={setPhase} />
         <Divider />
-        <FilterChips label="Type"
-          options={[{value:'All',label:'All'},...['30x40','30x50','40x60','50x80','non-standard'].map(t=>({value:t,label:t}))]}
-          value={siteType} onChange={setSiteType} />
-        <Divider />
         <FilterChips label="Status"
           options={[{value:'All',label:'All'},{value:'paid',label:'Paid'},{value:'partial',label:'Partial'},{value:'unpaid',label:'Unpaid'},{value:'nocontact',label:'No contact'}]}
           value={status} onChange={setStatus} />
         <Divider />
         <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', userSelect: 'none' }}>
-          <input type="checkbox" checked={membersOnly} onChange={e => setMembersOnly(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={membersOnly}
+            onChange={e => {
+              const checked = e.target.checked
+              setMembersOnly(checked)
+              if (checked) setNonMembersOnly(false)
+            }}
+          />
           Members only
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', userSelect: 'none' }}>
+          <input
+            type="checkbox"
+            checked={nonMembersOnly}
+            onChange={e => {
+              const checked = e.target.checked
+              setNonMembersOnly(checked)
+              if (checked) setMembersOnly(false)
+            }}
+          />
+          Non-members only
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', userSelect: 'none' }}>
           <input type="checkbox" checked={flaggedOnly} onChange={e => setFlaggedOnly(e.target.checked)} />
