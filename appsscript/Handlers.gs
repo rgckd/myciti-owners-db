@@ -83,6 +83,28 @@
     return sites;
   }
 
+  function getArchivedSites() {
+    const sites = sheetToObjectsAll(CONFIG.TABS.SITES)
+      .filter(s => s.IsDeleted === 'TRUE');
+    const owners = sheetToObjects(CONFIG.TABS.OWNERS);
+    const people = sheetToObjects(CONFIG.TABS.PEOPLE);
+    const peopleMap = Object.fromEntries(people.map(p => [p.PersonID, p]));
+
+    return sites.map(site => {
+      const currentOwners = owners.filter(o =>
+        o.SiteID === site.SiteID && (o.IsCurrent === 'TRUE' || o.IsCurrent === true)
+      );
+      const firstOwner = currentOwners[0];
+      const person = firstOwner ? peopleMap[firstOwner.PersonID] : null;
+      return {
+        ...site,
+        ownerName: person ? person.FullName : null,
+        membershipNo: firstOwner ? firstOwner.MembershipNo : null,
+        mobile: person ? (person.Mobile1 || person.Mobile2 || null) : null,
+      };
+    });
+  }
+
   function getSite(siteId) {
     const sites = sheetToObjects(CONFIG.TABS.SITES);
     const site = sites.find(s => s.SiteID === siteId);
@@ -116,6 +138,11 @@
   function archiveSite(params, caller) {
     if (!params.siteId) throw new Error('siteId is required');
     return softDelete(CONFIG.TABS.SITES, 'SiteID', params.siteId, caller);
+  }
+
+  function unarchiveSite(params, caller) {
+    if (!params.siteId) throw new Error('siteId is required');
+    return restoreDeleted(CONFIG.TABS.SITES, 'SiteID', params.siteId, caller);
   }
 
   function updateSite(params, caller) {

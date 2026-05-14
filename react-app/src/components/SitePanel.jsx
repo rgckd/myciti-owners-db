@@ -213,16 +213,6 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
             {canEdit(role, 'owners') && !showSiteEdit && (
               <button className="btn btn-ghost btn-sm" onClick={openSiteEdit}>Edit site details</button>
             )}
-            {role === 'Admin' && (
-              <button
-                className="btn btn-ghost btn-sm"
-                style={{ color: 'var(--disputed)' }}
-                onClick={handleArchiveSite}
-                disabled={archivingSite}
-              >
-                {archivingSite ? 'Archiving…' : 'Archive site'}
-              </button>
-            )}
             <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
           </div>
         </div>
@@ -348,6 +338,20 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <button className="btn btn-ghost btn-sm" onClick={() => setShowTransfer(true)}>
                     Transfer ownership
+                  </button>
+                </div>
+              )}
+
+              {role === 'Admin' && (
+                <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--disputed)', background: 'var(--disputed-bg)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--disputed)', marginBottom: 6 }}>Site controls</div>
+                  <button
+                    className="btn btn-sm"
+                    style={{ color: 'var(--disputed)', borderColor: 'var(--disputed)' }}
+                    onClick={handleArchiveSite}
+                    disabled={archivingSite}
+                  >
+                    {archivingSite ? 'Archiving…' : 'Archive this site'}
                   </button>
                 </div>
               )}

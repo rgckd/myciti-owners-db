@@ -91,10 +91,12 @@ function handleRequest(e, method, params) {
     switch (action) {
       // ── SITES ──
       case 'getSites':          requireDomain(role,'owners','view');  return jsonResponse(getSites(params));
+      case 'getArchivedSites':  requireAdmin(role);                    return jsonResponse(getArchivedSites(params));
       case 'getSite':           requireDomain(role,'owners','view');  return jsonResponse(getSite(params.siteId));
       case 'createSite':        requireAdmin(role);                    return jsonResponse(createSite(params, caller));
       case 'updateSite':        requireDomain(role,'owners','edit');  return jsonResponse(updateSite(params, caller));
       case 'archiveSite':       requireAdmin(role);                    return jsonResponse(archiveSite(params, caller));
+      case 'unarchiveSite':     requireAdmin(role);                    return jsonResponse(unarchiveSite(params, caller));
       case 'flagSite':          requireFlag(role);                    return jsonResponse(flagSite(params, caller));
 
       // ── PEOPLE ──

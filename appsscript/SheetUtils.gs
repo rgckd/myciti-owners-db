@@ -15,7 +15,7 @@ function normCell(v) {
   return v;
 }
 
-function sheetToObjects(tabName) {
+function sheetToObjectsAll(tabName) {
   const sheet = getSheet(tabName);
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
@@ -27,7 +27,11 @@ function sheetToObjects(tabName) {
       const obj = {};
       headers.forEach((h, i) => { obj[h] = normCell(row[i]); });
       return obj;
-    })
+    });
+}
+
+function sheetToObjects(tabName) {
+  return sheetToObjectsAll(tabName)
     .filter(obj => obj['IsDeleted'] !== 'TRUE');
 }
 
@@ -101,6 +105,12 @@ function softDelete(tabName, pkCol, pkVal, caller) {
   updateRowField(tabName, pkCol, pkVal, 'IsDeleted', 'TRUE', caller);
   writeAudit(caller, 'SoftDelete', tabName, pkVal, 'IsDeleted', 'FALSE', 'TRUE');
   return { deleted: true };
+}
+
+function restoreDeleted(tabName, pkCol, pkVal, caller) {
+  updateRowField(tabName, pkCol, pkVal, 'IsDeleted', 'FALSE', caller);
+  writeAudit(caller, 'Restore', tabName, pkVal, 'IsDeleted', 'TRUE', 'FALSE');
+  return { restored: true };
 }
 
 function nextId(prefix, tabName, pkCol) {

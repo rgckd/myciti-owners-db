@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { getSites, getStats, createSite } from '../utils/api.js'
+import { getSites, getArchivedSites, getStats, createSite, unarchiveSite } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canFlag, SITE_TYPES, SITE_TYPE_SQFT, toDateInput } from '../utils/constants.js'
 import SiteCard from '../components/SiteCard.jsx'
@@ -14,6 +14,7 @@ const SORT_FIELDS = [
 
 // Module-level cache — survives navigation, avoids reload on back-nav
 let _sitesCache = []
+let _archivedSitesCache = []
 let _statsCache = null
 export function getSitesCache() { return _sitesCache }
 
@@ -38,6 +39,7 @@ export default function SiteRegistry() {
   const [addingSite, setAddingSite] = useState(false)
   const [siteForm, setSiteForm] = useState({ siteNo: '', phase: '1', released: 'FALSE', siteType: '', sizesqft: '', regDate: '' })
   const [siteError, setSiteError] = useState('')
+  const [showArchived, setShowArchived] = useState(false)
 
   // Sort (up to 3 levels)
   const [sorts, setSorts] = useState([{ field: 'Phase', dir: 'asc' }, { field: 'SiteNo', dir: 'asc' }])
@@ -45,24 +47,54 @@ export default function SiteRegistry() {
   function commitSearch() { setSearch(searchInput) }
 
   const load = useCallback(async () => {
-    if (_sitesCache.length === 0) setLoading(true)
+    const activeView = !showArchived
+    const cache = activeView ? _sitesCache : _archivedSitesCache
+    if (cache.length === 0) setLoading(true)
     try {
-      const [sitesData, statsData] = await Promise.all([getSites(), getStats()])
-      _sitesCache = sitesData
-      _statsCache = statsData
-      setSites(sitesData)
-      setStats(statsData)
+      if (activeView) {
+        const [sitesData, statsData] = await Promise.all([getSites(), getStats()])
+        _sitesCache = sitesData
+        _statsCache = statsData
+        setSites(sitesData)
+        setStats(statsData)
+      } else {
+        const archivedData = await getArchivedSites()
+        _archivedSitesCache = archivedData
+        setSites(archivedData)
+      }
     } catch (e) {
       console.error(e)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [showArchived])
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    if (role !== 'Admin' && showArchived) setShowArchived(false)
+  }, [role, showArchived])
+
   const filtered = useMemo(() => {
     let list = [...sites]
+    if (showArchived) {
+      if (search) {
+        const q = search.toLowerCase()
+        list = list.filter(s =>
+          String(s.SiteNo).toLowerCase().includes(q) ||
+          (s.ownerName && s.ownerName.toLowerCase().includes(q)) ||
+          (s.membershipNo && String(s.membershipNo).toLowerCase().includes(q)) ||
+          (s.mobile && String(s.mobile).includes(q))
+        )
+      }
+      list.sort((a, b) => {
+        const an = parseInt(String(a.SiteNo || '')) || 0
+        const bn = parseInt(String(b.SiteNo || '')) || 0
+        if (an !== bn) return an - bn
+        return String(a.SiteNo || '').localeCompare(String(b.SiteNo || ''))
+      })
+      return list
+    }
     if (phase !== 'All') list = list.filter(s => String(s.Phase) === phase)
     if (memberFilter === 'members') list = list.filter(s => !!s.membershipNo)
     if (memberFilter === 'non-members') list = list.filter(s => !s.membershipNo)
@@ -101,7 +133,7 @@ export default function SiteRegistry() {
       return 0
     })
     return list
-  }, [sites, phase, search, memberFilter, payFilter, flagFilters, sorts])
+  }, [sites, phase, search, memberFilter, payFilter, flagFilters, sorts, showArchived])
 
   const flaggedCount = useMemo(() =>
     sites.filter(s => !s.mobile || s.hasOpenFollowUp || s.FlaggedForAttention === 'TRUE').length,
@@ -165,6 +197,18 @@ export default function SiteRegistry() {
     }
   }
 
+  async function handleUnarchiveSite(siteId, siteNo) {
+    if (!window.confirm(`Unarchive site ${siteNo}?`)) return
+    try {
+      await unarchiveSite(siteId)
+      _archivedSitesCache = _archivedSitesCache.filter(s => s.SiteID !== siteId)
+      _sitesCache = []
+      await load()
+    } catch (e) {
+      window.alert(e.message || 'Failed to unarchive site')
+    }
+  }
+
   const selectedSite = sites.find(s => s.SiteID === selectedSiteId)
 
   return (
@@ -179,7 +223,25 @@ export default function SiteRegistry() {
         }}>
           <h1 style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', flex: 1 }}>Site Registry</h1>
           {role === 'Admin' && (
-            <button className="btn btn-primary btn-sm" onClick={openAddSite}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                className={`btn btn-sm ${showArchived ? 'btn-ghost' : ''}`}
+                style={!showArchived ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
+                onClick={() => setShowArchived(false)}
+              >
+                Active sites
+              </button>
+              <button
+                className={`btn btn-sm ${showArchived ? '' : 'btn-ghost'}`}
+                style={showArchived ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)' } : {}}
+                onClick={() => setShowArchived(true)}
+              >
+                Archived sites
+              </button>
+            </div>
+          )}
+          {role === 'Admin' && (
+            <button className="btn btn-primary btn-sm" onClick={openAddSite} disabled={showArchived} title={showArchived ? 'Switch to Active sites to add a site' : ''}>
               + Add site
             </button>
           )}
@@ -211,7 +273,7 @@ export default function SiteRegistry() {
         </div>
 
         {/* Stats bar */}
-        {stats && (
+        {!showArchived && stats && (
           <div style={{
             display: 'flex', gap: 0,
             borderBottom: '1px solid var(--border)', flexShrink: 0, background: 'var(--surface)'
@@ -232,6 +294,7 @@ export default function SiteRegistry() {
         )}
 
         {/* Filter bar */}
+        {!showArchived && (
         <div style={{
           padding: '8px 20px', borderBottom: '1px solid var(--border)',
           display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0
@@ -276,8 +339,10 @@ export default function SiteRegistry() {
             >{label}</button>
           ))}
         </div>
+        )}
 
         {/* Sort controls */}
+        {!showArchived && (
         <div style={{
           padding: '6px 20px', borderBottom: '1px solid var(--border)',
           display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0,
@@ -316,6 +381,7 @@ export default function SiteRegistry() {
             {filtered.length} site{filtered.length !== 1 ? 's' : ''}
           </span>
         </div>
+        )}
 
         {/* Grid */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
@@ -332,23 +398,39 @@ export default function SiteRegistry() {
               gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
               gap: 10
             }}>
-              {filtered.map(site => (
-                <SiteCard
-                  key={site.SiteID}
-                  site={site}
-                  selected={selectedSiteId === site.SiteID}
-                  onClick={() => setSelectedSiteId(
-                    selectedSiteId === site.SiteID ? null : site.SiteID
-                  )}
-                />
-              ))}
+              {showArchived
+                ? filtered.map(site => (
+                  <div key={site.SiteID} className="card" style={{ border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>Site {site.SiteNo}</div>
+                      <span className="badge badge-nonmember">Archived</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>Phase {site.Phase || '—'} · {site.SiteType || '—'}</div>
+                    <div style={{ fontSize: 13, color: 'var(--ink)' }}>{site.ownerName || 'No owner data'}</div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button className="btn btn-sm" onClick={() => handleUnarchiveSite(site.SiteID, site.SiteNo)}>
+                        Unarchive
+                      </button>
+                    </div>
+                  </div>
+                ))
+                : filtered.map(site => (
+                  <SiteCard
+                    key={site.SiteID}
+                    site={site}
+                    selected={selectedSiteId === site.SiteID}
+                    onClick={() => setSelectedSiteId(
+                      selectedSiteId === site.SiteID ? null : site.SiteID
+                    )}
+                  />
+                ))}
             </div>
           )}
         </div>
       </div>
 
       {/* Side panel */}
-      {selectedSiteId && (
+      {selectedSiteId && !showArchived && (
         <SitePanel
           siteId={selectedSiteId}
           onClose={() => setSelectedSiteId(null)}
