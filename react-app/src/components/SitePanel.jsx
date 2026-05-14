@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, updatePerson, updateOwner, removeOwnerFromSite, updatePayment, deletePayment, createCallLog, updateCallLog, markFollowUpDone, reopenFollowUp, getAssignableUsers, uploadFileToDrive } from '../utils/api.js'
+import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, archiveSite, updatePerson, updateOwner, removeOwnerFromSite, updatePayment, deletePayment, createCallLog, updateCallLog, markFollowUpDone, reopenFollowUp, getAssignableUsers, uploadFileToDrive } from '../utils/api.js'
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES, SITE_TYPES, SITE_TYPE_SQFT } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
 import TransferModal from './TransferModal.jsx'
@@ -33,6 +33,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [showSiteEdit, setShowSiteEdit] = useState(false)
   const [siteEditData, setSiteEditData] = useState({})
   const [savingSite, setSavingSite] = useState(false)
+  const [archivingSite, setArchivingSite] = useState(false)
   const [idCardOwner, setIdCardOwner] = useState(null)
 
   const fetchedTabs = useRef(new Set())
@@ -150,6 +151,16 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
     } finally { setSavingSite(false) }
   }
 
+  async function handleArchiveSite() {
+    if (!window.confirm(`Archive site ${site.SiteNo}? This will hide it from the registry.`)) return
+    setArchivingSite(true)
+    try {
+      await archiveSite(siteId)
+      onRefresh?.()
+      onClose?.()
+    } finally { setArchivingSite(false) }
+  }
+
   async function handleSaveNote() {
     const summaryText = noteText.trim()
     const followUpText = followup.trim()
@@ -201,6 +212,16 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {canEdit(role, 'owners') && !showSiteEdit && (
               <button className="btn btn-ghost btn-sm" onClick={openSiteEdit}>Edit site details</button>
+            )}
+            {role === 'Admin' && (
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ color: 'var(--disputed)' }}
+                onClick={handleArchiveSite}
+                disabled={archivingSite}
+              >
+                {archivingSite ? 'Archiving…' : 'Archive site'}
+              </button>
             )}
             <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
           </div>

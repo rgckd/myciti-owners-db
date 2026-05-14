@@ -113,6 +113,11 @@
     return { siteId: id };
   }
 
+  function archiveSite(params, caller) {
+    if (!params.siteId) throw new Error('siteId is required');
+    return softDelete(CONFIG.TABS.SITES, 'SiteID', params.siteId, caller);
+  }
+
   function updateSite(params, caller) {
     const allowed = ['SiteNo','Phase','Released','SiteType','Sizesqft','RegDate','AttachmentURLs'];
     const fields = {};

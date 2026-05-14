@@ -68,6 +68,7 @@ export const getSites       = (p={}) => call('getSites', p)
 export const getSite        = (siteId) => call('getSite', { siteId })
 export const createSite     = (p) => call('createSite', p)
 export const updateSite     = (p) => call('updateSite', p)
+export const archiveSite    = (siteId) => call('archiveSite', { siteId })
 export const flagSite       = (siteId, flag, comment='') => call('flagSite', { siteId, flag: String(flag), comment })
 
 // ── People ─────────────────────────────────────────────────────────────────

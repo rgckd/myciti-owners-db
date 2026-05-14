@@ -92,8 +92,9 @@ function handleRequest(e, method, params) {
       // ── SITES ──
       case 'getSites':          requireDomain(role,'owners','view');  return jsonResponse(getSites(params));
       case 'getSite':           requireDomain(role,'owners','view');  return jsonResponse(getSite(params.siteId));
-      case 'createSite':        requireDomain(role,'owners','edit');  return jsonResponse(createSite(params, caller));
+      case 'createSite':        requireAdmin(role);                    return jsonResponse(createSite(params, caller));
       case 'updateSite':        requireDomain(role,'owners','edit');  return jsonResponse(updateSite(params, caller));
+      case 'archiveSite':       requireAdmin(role);                    return jsonResponse(archiveSite(params, caller));
       case 'flagSite':          requireFlag(role);                    return jsonResponse(flagSite(params, caller));
 
       // ── PEOPLE ──

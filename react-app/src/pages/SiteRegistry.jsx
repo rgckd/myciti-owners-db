@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { getSites, getStats } from '../utils/api.js'
+import { getSites, getStats, createSite } from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { canFlag } from '../utils/constants.js'
+import { canFlag, SITE_TYPES, SITE_TYPE_SQFT, toDateInput } from '../utils/constants.js'
 import SiteCard from '../components/SiteCard.jsx'
 import SitePanel from '../components/SitePanel.jsx'
 
@@ -34,6 +34,10 @@ export default function SiteRegistry() {
   const [memberFilter, setMemberFilter] = useState('all') // 'all' | 'members' | 'non-members'
   const [payFilter, setPayFilter] = useState('')          // '' | 'paid' | 'partial' | 'unpaid'
   const [flagFilters, setFlagFilters] = useState({ noPhone: false, followUp: false, issue: false })
+  const [showAddSite, setShowAddSite] = useState(false)
+  const [addingSite, setAddingSite] = useState(false)
+  const [siteForm, setSiteForm] = useState({ siteNo: '', phase: '1', released: 'FALSE', siteType: '', sizesqft: '', regDate: '' })
+  const [siteError, setSiteError] = useState('')
 
   // Sort (up to 3 levels)
   const [sorts, setSorts] = useState([{ field: 'Phase', dir: 'asc' }, { field: 'SiteNo', dir: 'asc' }])
@@ -114,6 +118,53 @@ export default function SiteRegistry() {
     setSorts(s => s.filter((_, idx) => idx !== i))
   }
 
+  function openAddSite() {
+    setSiteForm({ siteNo: '', phase: '1', released: 'FALSE', siteType: '', sizesqft: '', regDate: '' })
+    setSiteError('')
+    setShowAddSite(true)
+  }
+
+  async function handleAddSite() {
+    if (!siteForm.siteNo.trim()) {
+      setSiteError('Site number is required')
+      return
+    }
+    if (!siteForm.phase.trim()) {
+      setSiteError('Phase is required')
+      return
+    }
+    if (!siteForm.siteType) {
+      setSiteError('Site type is required')
+      return
+    }
+    const sqft = siteForm.siteType !== 'non-standard'
+      ? (SITE_TYPE_SQFT[siteForm.siteType] || '')
+      : siteForm.sizesqft.trim()
+    if (siteForm.siteType === 'non-standard' && !sqft) {
+      setSiteError('Size (sqft) is required for non-standard sites')
+      return
+    }
+
+    setAddingSite(true)
+    setSiteError('')
+    try {
+      await createSite({
+        siteNo: siteForm.siteNo.trim(),
+        phase: siteForm.phase.trim(),
+        released: siteForm.released,
+        siteType: siteForm.siteType,
+        sizesqft: String(sqft || ''),
+        regDate: toDateInput(siteForm.regDate) || siteForm.regDate,
+      })
+      setShowAddSite(false)
+      await load()
+    } catch (e) {
+      setSiteError(e.message || 'Failed to add site')
+    } finally {
+      setAddingSite(false)
+    }
+  }
+
   const selectedSite = sites.find(s => s.SiteID === selectedSiteId)
 
   return (
@@ -127,6 +178,11 @@ export default function SiteRegistry() {
           display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0
         }}>
           <h1 style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', flex: 1 }}>Site Registry</h1>
+          {role === 'Admin' && (
+            <button className="btn btn-primary btn-sm" onClick={openAddSite}>
+              + Add site
+            </button>
+          )}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             background: 'var(--surface-2)', border: '1px solid var(--border)',
@@ -299,6 +355,68 @@ export default function SiteRegistry() {
           onRefresh={load}
           role={role}
         />
+      )}
+
+      {showAddSite && role === 'Admin' && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20
+        }}>
+          <div style={{
+            background: 'var(--surface)', borderRadius: 'var(--radius-xl)',
+            width: '100%', maxWidth: 420, border: '1px solid var(--border)'
+          }}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontWeight: 600 }}>Add site</div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddSite(false)}>✕</button>
+            </div>
+            <div style={{ padding: '16px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                Site no *
+                <input className="input" value={siteForm.siteNo} onChange={e => setSiteForm(f => ({ ...f, siteNo: e.target.value }))} />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                Phase *
+                <input className="input" value={siteForm.phase} onChange={e => setSiteForm(f => ({ ...f, phase: e.target.value }))} />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                Site type *
+                <select className="input" value={siteForm.siteType} onChange={e => setSiteForm(f => ({ ...f, siteType: e.target.value, sizesqft: SITE_TYPE_SQFT[e.target.value] || (e.target.value === 'non-standard' ? f.sizesqft : '') }))}>
+                  <option value="">— select —</option>
+                  {SITE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                Released
+                <select className="input" value={siteForm.released} onChange={e => setSiteForm(f => ({ ...f, released: e.target.value }))}>
+                  <option value="FALSE">No</option>
+                  <option value="TRUE">Yes</option>
+                </select>
+              </label>
+              {siteForm.siteType === 'non-standard' && (
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                  Size (sqft) *
+                  <input className="input" type="number" value={siteForm.sizesqft} onChange={e => setSiteForm(f => ({ ...f, sizesqft: e.target.value }))} />
+                </label>
+              )}
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                Registration date
+                <input className="input" type="date" value={siteForm.regDate} onChange={e => setSiteForm(f => ({ ...f, regDate: e.target.value }))} />
+              </label>
+              {siteError && (
+                <div style={{ gridColumn: '1 / -1', fontSize: 12, padding: '10px 12px', background: 'var(--disputed-bg)', color: 'var(--disputed)', borderRadius: 'var(--radius-md)' }}>
+                  {siteError}
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn" onClick={() => setShowAddSite(false)}>Cancel</button>
+              <button className="btn btn-primary" disabled={addingSite} onClick={handleAddSite}>
+                {addingSite ? 'Adding…' : 'Add site'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
