@@ -295,6 +295,68 @@
     throw new Error('Owner-level flagging is disabled. Use Site-level flagging only.');
   }
 
+  function addOwnersToSite(params, caller) {
+    if (!params.siteId) throw new Error('siteId is required');
+
+    const ownershipStartDate = params.ownershipStartDate || NOW_ISO().split('T')[0];
+    const newPersons = Array.isArray(params.newPersons)
+      ? params.newPersons
+      : (params.newPerson ? [params.newPerson] : []);
+
+    if (newPersons.length === 0 && !params.personId) {
+      throw new Error('newPersons (or newPerson/personId) is required');
+    }
+
+    const incoming = [];
+    if (params.personId) {
+      incoming.push({
+        personId: params.personId,
+        membershipNo: params.membershipNo || '',
+        nominatedContact: params.nominatedContact || ''
+      });
+    }
+    newPersons.forEach(p => {
+      incoming.push(p || {});
+    });
+
+    const createdOwners = incoming.map((personLike, idx) => {
+      let personId = personLike.personId || '';
+      if (!personId) {
+        if (!personLike.fullName || !personLike.mobile1) {
+          throw new Error(`Incoming owner ${idx + 1} must include fullName and mobile1`);
+        }
+        const pResult = createPerson(personLike, caller);
+        personId = pResult.personId;
+      }
+
+      const membershipNo =
+        personLike.membershipNo ||
+        (idx === 0 ? (params.membershipNo || '') : '') ||
+        nextMembershipNo();
+
+      const ownerResult = createOwner({
+        siteId: params.siteId,
+        personId,
+        membershipNo,
+        memberSince: personLike.memberSince || ownershipStartDate,
+        ownershipStartDate,
+        nominatedContact: personLike.nominatedContact || params.nominatedContact || '',
+        status: 'Active'
+      }, caller);
+
+      return { ownerId: ownerResult.ownerId, personId, membershipNo };
+    });
+
+    return {
+      ownerId: createdOwners[0] ? createdOwners[0].ownerId : '',
+      ownerIds: createdOwners.map(o => o.ownerId),
+      membershipNo: createdOwners[0] ? createdOwners[0].membershipNo : '',
+      membershipNos: createdOwners.map(o => o.membershipNo),
+      personId: createdOwners[0] ? createdOwners[0].personId : '',
+      personIds: createdOwners.map(o => o.personId)
+    };
+  }
+
   function transferOwnership(params, caller) {
     const transferDate = params.transferDate || NOW_ISO().split('T')[0];
 
@@ -304,9 +366,6 @@
     const cleanFromOwnerIds = fromOwnerIds
       .map(id => String(id || '').trim())
       .filter(Boolean);
-    if (cleanFromOwnerIds.length === 0) {
-      throw new Error('fromOwnerIds (or fromOwnerId) is required');
-    }
 
     const newPersons = Array.isArray(params.newPersons)
       ? params.newPersons
@@ -315,7 +374,8 @@
       throw new Error('newPersons (or newPerson/personId) is required');
     }
 
-    // 1. Flip all outgoing owners to IsCurrent = FALSE
+    // 1. Flip outgoing owners to IsCurrent = FALSE when this is a transfer.
+    // If there are no outgoing owners, treat this as first-owner assignment.
     cleanFromOwnerIds.forEach(ownerId => {
       const outChanges = updateRowFields(CONFIG.TABS.OWNERS, 'OwnerID', ownerId, {
         IsCurrent: 'FALSE',

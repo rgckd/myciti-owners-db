@@ -18,6 +18,7 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
   const fileInputRef = useRef(null)
 
   const outgoingOwners = currentOwners && currentOwners.length > 0 ? currentOwners : (fromOwner ? [fromOwner] : [])
+  const hasOutgoingOwners = outgoingOwners.length > 0
 
   async function handleDocUpload(e) {
     const file = e.target.files?.[0]
@@ -36,7 +37,6 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
   async function handleSave() {
     if (!transferDate) { setError('Transfer date is required'); return }
     const ownerIds = outgoingOwners.map(o => o?.OwnerID).filter(Boolean)
-    if (ownerIds.length === 0) { setError('No valid outgoing owner records found for this site'); return }
     if (newOwners.some(o => !o.fullName || !o.mobile1)) { setError('All new owners must have full name and mobile'); return }
     if (!docRef) { setError('Please upload the transfer document before completing'); return }
     setSaving(true); setError('')
@@ -85,7 +85,7 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
           padding: '14px 18px', borderBottom: '1px solid var(--border)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center'
         }}>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>Transfer ownership</div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{hasOutgoingOwners ? 'Transfer ownership' : 'Add owner'}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
 
@@ -111,7 +111,7 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
               <div className="label">Outgoing owners ({outgoingOwners.length})</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {outgoingOwners.length === 0 ? (
-                  <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>No current owners</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>No current owners. You are assigning the first owner for this site.</div>
                 ) : (
                   outgoingOwners.map((owner, idx) => (
                     <div key={idx} style={{ padding: '12px', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}>
@@ -124,7 +124,9 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
                 )}
               </div>
               <p style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 12 }}>
-                All current owners will stop being recorded as owners of this site. Their ownership will be marked as ended on the transfer date you set in step 3.
+                {hasOutgoingOwners
+                  ? 'All current owners will stop being recorded as owners of this site. Their ownership will be marked as ended on the transfer date you set in step 3.'
+                  : 'No existing owner records will be changed. The incoming owner(s) will be recorded as the first owner(s) from the transfer date.'}
               </p>
             </div>
           )}

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, archiveSite, updatePerson, updateOwner, removeOwnerFromSite, updatePayment, deletePayment, createCallLog, updateCallLog, markFollowUpDone, reopenFollowUp, getAssignableUsers, uploadFileToDrive } from '../utils/api.js'
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES, SITE_TYPES, SITE_TYPE_SQFT } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
+import AddOwnerModal from './AddOwnerModal.jsx'
 import TransferModal from './TransferModal.jsx'
 import CombinedIDCard from './CombinedIDCard.jsx'
 
@@ -17,6 +18,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [paymentsLoading, setPaymentsLoading] = useState(false)
   const [callLogLoading, setCallLogLoading] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
+  const [showAddOwner, setShowAddOwner] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [showFlagModal, setShowFlagModal] = useState(false)
@@ -335,10 +337,20 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
                 />
               ))}
               {canEdit(role, 'owners') && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setShowTransfer(true)}>
-                    Transfer ownership
-                  </button>
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setShowAddOwner(true)}>
+                      Add owner
+                    </button>
+                    {currentOwners.length > 0 && (
+                      <button className="btn btn-ghost btn-sm" onClick={() => setShowTransfer(true)}>
+                        Transfer ownership
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 6 }}>
+                    Add owner keeps existing owners and adds co-owner(s). Transfer ownership replaces current owner(s) with new owner(s).
+                  </div>
                 </div>
               )}
 
@@ -514,6 +526,14 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
           currentOwners={currentOwners}
           onClose={() => setShowTransfer(false)}
           onSaved={() => { setShowTransfer(false); load(); onRefresh() }}
+        />
+      )}
+
+      {showAddOwner && (
+        <AddOwnerModal
+          siteId={siteId}
+          onClose={() => setShowAddOwner(false)}
+          onSaved={() => { setShowAddOwner(false); load(); onRefresh?.() }}
         />
       )}
 

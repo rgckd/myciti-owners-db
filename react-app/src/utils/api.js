@@ -84,6 +84,7 @@ export const getOwners      = (p={}) => call('getOwners', p)
 export const createOwner    = (p) => call('createOwner', p)
 export const updateOwner    = (p) => call('updateOwner', p)
 export const flagOwner      = (ownerId, flag, comment='') => call('flagOwner', { ownerId, flag: String(flag), comment })
+export const addOwnersToSite = (p) => call('addOwnersToSite', p)
 export const transferOwnership = (p) => call('transferOwnership', p)
 export const removeOwnerFromSite = (p) => call('removeOwnerFromSite', p)
 
