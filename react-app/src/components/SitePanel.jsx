@@ -728,6 +728,7 @@ function OwnerRow({ owner, role, onRefresh, onGenerateIdCard }) {
     setSaving(true)
     setSaveError('')
     try {
+      const membershipNo = String(form.membershipNo || '').trim()
       await updatePerson({
         personId: p.PersonID,
         FullName: form.fullName,
@@ -740,8 +741,8 @@ function OwnerRow({ owner, role, onRefresh, onGenerateIdCard }) {
       })
       await updateOwner({
         ownerId: owner.OwnerID,
-        MembershipNo: form.membershipNo,
-        MemberSince: form.memberSince,
+        MembershipNo: membershipNo,
+        MemberSince: membershipNo ? form.memberSince : '',
         NominatedContact: form.nominatedContact,
       })
       setEditing(false)

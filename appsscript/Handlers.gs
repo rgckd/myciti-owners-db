@@ -276,6 +276,12 @@
   }
 
   function updateOwner(params, caller) {
+    if (params.MembershipNo !== undefined) {
+      params.MembershipNo = String(params.MembershipNo || '').trim();
+      if (!params.MembershipNo && params.MemberSince === undefined) {
+        params.MemberSince = '';
+      }
+    }
     const allowed = ['MembershipNo','MemberSince','NominatedContact','IsCouncilMember',
       'AgentID','Status','Notes','OwnershipStartDate','OwnershipEndDate'];
     const fields = {};
