@@ -146,6 +146,31 @@
   }
 
   function updateSite(params, caller) {
+    if (!params.siteId) throw new Error('siteId is required');
+
+    const sitesAll = sheetToObjectsAll(CONFIG.TABS.SITES);
+    const currentSite = sitesAll.find(s => s.SiteID === params.siteId);
+    if (!currentSite) throw new Error('Site not found: ' + params.siteId);
+
+    if (params.SiteNo !== undefined) {
+      const requestedSiteNo = String(params.SiteNo || '').trim();
+      if (!requestedSiteNo) throw new Error('Site number cannot be empty');
+
+      const existingSiteNo = String(currentSite.SiteNo || '').trim();
+      const isRename = requestedSiteNo !== existingSiteNo;
+      if (isRename && caller.role !== 'Admin') {
+        throw new Error('Only Admin can rename a site');
+      }
+
+      const duplicate = sitesAll.some(s =>
+        s.SiteID !== params.siteId &&
+        String(s.SiteNo || '').trim().toLowerCase() === requestedSiteNo.toLowerCase()
+      );
+      if (duplicate) throw new Error('Site number already exists');
+
+      params.SiteNo = requestedSiteNo;
+    }
+
     const allowed = ['SiteNo','Phase','Released','SiteType','Sizesqft','RegDate','AttachmentURLs'];
     const fields = {};
     allowed.forEach(f => { if (params[f] !== undefined) fields[f] = params[f]; });

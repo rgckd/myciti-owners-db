@@ -136,7 +136,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
 
   function openSiteEdit() {
     const s = data.site
-    setSiteEditData({ SiteType: s.SiteType || '', Sizesqft: s.Sizesqft || '', RegDate: toDateInput(s.RegDate) || '' })
+    setSiteEditData({ SiteNo: s.SiteNo || '', SiteType: s.SiteType || '', Sizesqft: s.Sizesqft || '', RegDate: toDateInput(s.RegDate) || '' })
     setShowSiteEdit(true)
   }
 
@@ -146,7 +146,14 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
       const sqft = siteEditData.SiteType !== 'non-standard'
         ? (SITE_TYPE_SQFT[siteEditData.SiteType] || siteEditData.Sizesqft)
         : siteEditData.Sizesqft
-      await updateSite({ siteId, SiteType: siteEditData.SiteType, Sizesqft: String(sqft || ''), RegDate: siteEditData.RegDate })
+      const payload = {
+        siteId,
+        SiteType: siteEditData.SiteType,
+        Sizesqft: String(sqft || ''),
+        RegDate: siteEditData.RegDate,
+      }
+      if (role === 'Admin') payload.SiteNo = String(siteEditData.SiteNo || '').trim()
+      await updateSite(payload)
       setShowSiteEdit(false)
       await load()
       onRefresh?.()
@@ -262,6 +269,17 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
               showSiteEdit ? (
                 <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>Edit site details</div>
+                  {role === 'Admin' && (
+                    <label style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      Site number
+                      <input
+                        type='text'
+                        value={siteEditData.SiteNo || ''}
+                        onChange={e => setSiteEditData(d => ({ ...d, SiteNo: e.target.value }))}
+                        style={{ fontSize: 13, padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: 160 }}
+                      />
+                    </label>
+                  )}
                   <label style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
                     Site type
                     <select
