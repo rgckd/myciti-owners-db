@@ -350,7 +350,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
                   key={o.OwnerID}
                   owner={o}
                   role={role}
-                  onRefresh={load}
+                  onRefresh={async () => { await load(); onRefresh?.() }}
                   onGenerateIdCard={setIdCardOwner}
                 />
               ))}
