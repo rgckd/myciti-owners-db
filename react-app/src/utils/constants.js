@@ -2,9 +2,10 @@
 
 export const ROLES = { EDIT: 'Edit', PAYMENTS: 'Payments', CALLER: 'Caller', VIEW: 'View', ADMIN: 'Admin' }
 
-export const SITE_TYPES = ['30x40', '30x50', '40x60', '50x80', '27x50', '40x40', 'non-standard']
+export const SITE_TYPES = ['30x25', '30x40', '30x50', '40x60', '50x80', '27x50', '40x40', 'non-standard']
 
 export const SITE_TYPE_SQFT = {
+  '30x25': 750,
   '30x40': 1200, '30x50': 1500, '40x60': 2400,
   '50x80': 4000, '27x50': 1350, '40x40': 1600,
 }
