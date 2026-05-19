@@ -3,13 +3,13 @@ import { addOwnersToSite } from '../utils/api.js'
 import DateInput from './DateInput.jsx'
 
 export default function AddOwnerModal({ siteId, onClose, onSaved }) {
-  const [newOwners, setNewOwners] = useState([{ fullName: '', mobile1: '', email: '' }])
+  const [newOwners, setNewOwners] = useState([{ fullName: '', mobile1: '', email: '', membershipNo: '', memberSince: '' }])
   const [ownershipStartDate, setOwnershipStartDate] = useState(new Date().toISOString().split('T')[0])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   function addNewOwner() {
-    setNewOwners(prev => [...prev, { fullName: '', mobile1: '', email: '' }])
+    setNewOwners(prev => [...prev, { fullName: '', mobile1: '', email: '', membershipNo: '', memberSince: '' }])
   }
 
   function removeNewOwner(index) {
@@ -33,6 +33,10 @@ export default function AddOwnerModal({ siteId, onClose, onSaved }) {
       setError('All owners must have full name and mobile')
       return
     }
+    if (newOwners.some(o => o.membershipNo && !o.memberSince)) {
+      setError('Member Since is required when Membership ID is entered')
+      return
+    }
 
     setSaving(true)
     setError('')
@@ -40,7 +44,14 @@ export default function AddOwnerModal({ siteId, onClose, onSaved }) {
       await addOwnersToSite({
         siteId,
         ownershipStartDate,
-        newPersons: newOwners
+        newPersons: newOwners.map(owner => {
+          const membershipNo = String(owner.membershipNo || '').trim()
+          return {
+            ...owner,
+            membershipNo,
+            memberSince: membershipNo ? owner.memberSince : ''
+          }
+        })
       })
       onSaved()
     } catch (e) {
@@ -129,6 +140,29 @@ export default function AddOwnerModal({ siteId, onClose, onSaved }) {
                     onChange={e => updateNewOwner(idx, 'email', e.target.value)}
                     style={{ fontSize: 12 }}
                   />
+
+                  <input
+                    className="input"
+                    placeholder="Membership ID (optional)"
+                    value={owner.membershipNo}
+                    onChange={e => {
+                      const membershipNo = e.target.value
+                      updateNewOwner(idx, 'membershipNo', membershipNo)
+                      if (!String(membershipNo || '').trim()) {
+                        updateNewOwner(idx, 'memberSince', '')
+                      }
+                    }}
+                    style={{ fontSize: 12 }}
+                  />
+
+                  <div>
+                    <label className="label" style={{ fontSize: 11 }}>Member Since</label>
+                    <DateInput
+                      value={owner.memberSince || ''}
+                      onChange={value => updateNewOwner(idx, 'memberSince', value)}
+                      disabled={!String(owner.membershipNo || '').trim()}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -143,7 +177,7 @@ export default function AddOwnerModal({ siteId, onClose, onSaved }) {
           </button>
 
           <p style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-            This adds co-owner(s) to the site without removing existing owners. Membership numbers are auto-assigned.
+            This adds co-owner(s) to the site without removing existing owners. Leave Membership ID blank to mark an owner as non-member.
           </p>
 
           {error && (

@@ -343,6 +343,7 @@
       incoming.push({
         personId: params.personId,
         membershipNo: params.membershipNo || '',
+        memberSince: params.memberSince || '',
         nominatedContact: params.nominatedContact || ''
       });
     }
@@ -360,16 +361,20 @@
         personId = pResult.personId;
       }
 
-      const membershipNo =
+      const membershipNo = String(
         personLike.membershipNo ||
-        (idx === 0 ? (params.membershipNo || '') : '') ||
-        nextMembershipNo();
+        (idx === 0 ? (params.membershipNo || '') : '')
+      ).trim();
+      const memberSinceRaw = String(
+        personLike.memberSince ||
+        (idx === 0 ? (params.memberSince || '') : '')
+      ).trim();
 
       const ownerResult = createOwner({
         siteId: params.siteId,
         personId,
         membershipNo,
-        memberSince: personLike.memberSince || ownershipStartDate,
+        memberSince: membershipNo ? memberSinceRaw : '',
         ownershipStartDate,
         nominatedContact: personLike.nominatedContact || params.nominatedContact || '',
         status: 'Active'
@@ -421,6 +426,7 @@
       incoming.push({
         personId: params.personId,
         membershipNo: params.membershipNo || '',
+        memberSince: params.memberSince || '',
         nominatedContact: params.nominatedContact || ''
       });
     }
@@ -438,17 +444,21 @@
         personId = pResult.personId;
       }
 
-      // Legacy single-transfer payload may pass one membershipNo for the first incoming owner.
-      const membershipNo =
+      // Legacy single-transfer payload may pass membership fields for the first incoming owner.
+      const membershipNo = String(
         personLike.membershipNo ||
-        (idx === 0 ? (params.membershipNo || '') : '') ||
-        nextMembershipNo();
+        (idx === 0 ? (params.membershipNo || '') : '')
+      ).trim();
+      const memberSinceRaw = String(
+        personLike.memberSince ||
+        (idx === 0 ? (params.memberSince || '') : '')
+      ).trim();
 
       const newOwnerResult = createOwner({
         siteId: params.siteId,
         personId,
         membershipNo,
-        memberSince: personLike.memberSince || transferDate,
+        memberSince: membershipNo ? memberSinceRaw : '',
         ownershipStartDate: transferDate,
         nominatedContact: personLike.nominatedContact || params.nominatedContact || '',
         status: 'Active'

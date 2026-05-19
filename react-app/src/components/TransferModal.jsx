@@ -7,7 +7,7 @@ const STEPS = ['Outgoing owners', 'Incoming owners', 'Transfer details']
 
 export default function TransferModal({ siteId, fromOwner, currentOwners, onClose, onSaved }) {
   const [step, setStep] = useState(0)
-  const [newOwners, setNewOwners] = useState([{ fullName: '', mobile1: '', email: '' }])
+  const [newOwners, setNewOwners] = useState([{ fullName: '', mobile1: '', email: '', membershipNo: '', memberSince: '' }])
   const [transferDate, setTransferDate] = useState(new Date().toISOString().split('T')[0])
   const [salePrice, setSalePrice] = useState('')
   const [docRef, setDocRef] = useState('')
@@ -38,6 +38,7 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
     if (!transferDate) { setError('Transfer date is required'); return }
     const ownerIds = outgoingOwners.map(o => o?.OwnerID).filter(Boolean)
     if (newOwners.some(o => !o.fullName || !o.mobile1)) { setError('All new owners must have full name and mobile'); return }
+    if (newOwners.some(o => o.membershipNo && !o.memberSince)) { setError('Member Since is required when Membership ID is entered'); return }
     if (!docRef) { setError('Please upload the transfer document before completing'); return }
     setSaving(true); setError('')
     try {
@@ -47,7 +48,14 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
         transferDate,
         salePrice: salePrice ? Number(salePrice) : '',
         docRef,
-        newPersons: newOwners
+        newPersons: newOwners.map(owner => {
+          const membershipNo = String(owner.membershipNo || '').trim()
+          return {
+            ...owner,
+            membershipNo,
+            memberSince: membershipNo ? owner.memberSince : ''
+          }
+        })
       })
       onSaved()
     } catch (e) {
@@ -56,7 +64,7 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
   }
 
   function addNewOwner() {
-    setNewOwners(prev => [...prev, { fullName: '', mobile1: '', email: '' }])
+    setNewOwners(prev => [...prev, { fullName: '', mobile1: '', email: '', membershipNo: '', memberSince: '' }])
   }
 
   function removeNewOwner(index) {
@@ -175,6 +183,27 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
                         onChange={e => updateNewOwner(idx, 'email', e.target.value)}
                         style={{ fontSize: 12 }}
                       />
+                      <input
+                        className="input"
+                        placeholder="Membership ID (optional)"
+                        value={owner.membershipNo}
+                        onChange={e => {
+                          const membershipNo = e.target.value
+                          updateNewOwner(idx, 'membershipNo', membershipNo)
+                          if (!String(membershipNo || '').trim()) {
+                            updateNewOwner(idx, 'memberSince', '')
+                          }
+                        }}
+                        style={{ fontSize: 12 }}
+                      />
+                      <div>
+                        <label className="label" style={{ fontSize: 11 }}>Member Since</label>
+                        <DateInput
+                          value={owner.memberSince || ''}
+                          onChange={value => updateNewOwner(idx, 'memberSince', value)}
+                          disabled={!String(owner.membershipNo || '').trim()}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -187,7 +216,7 @@ export default function TransferModal({ siteId, fromOwner, currentOwners, onClos
                 + Add another owner
               </button>
               <p style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                New membership numbers will be auto-assigned for each owner.
+                Leave Membership ID blank to record the incoming owner as non-member.
               </p>
             </div>
           )}
