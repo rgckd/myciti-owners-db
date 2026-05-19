@@ -1,6 +1,6 @@
   // Handlers.gs — All domain operation handlers
 
-  const NOW_ISO = () => new Date().toISOString();
+  function nowIsoTs_() { return new Date().toISOString(); }
 
   // ─── SITES ───────────────────────────────────────────────────────────────────
 
@@ -187,7 +187,7 @@
       // Keep metadata even when clearing so resolution details are not lost.
       FlagComment: comment,
       FlaggedBy: caller.email,
-      FlaggedAt: NOW_ISO()
+      FlaggedAt: nowIsoTs_()
     };
     const changes = updateRowFields(CONFIG.TABS.SITES, 'SiteID', params.siteId, fields, caller);
     writeAuditChanges(caller, 'Sites', params.siteId, changes);
@@ -295,7 +295,7 @@
     if (!params.ownerId) throw new Error('ownerId required');
     if (!params.personId) throw new Error('personId required');
 
-    const today = NOW_ISO().split('T')[0];
+    const today = nowIsoTs_().split('T')[0];
 
     // Mark this owner row as no longer current
     const ownerChanges = updateRowFields(CONFIG.TABS.OWNERS, 'OwnerID', params.ownerId, {
@@ -329,7 +329,7 @@
   function addOwnersToSite(params, caller) {
     if (!params.siteId) throw new Error('siteId is required');
 
-    const ownershipStartDate = params.ownershipStartDate || NOW_ISO().split('T')[0];
+    const ownershipStartDate = params.ownershipStartDate || nowIsoTs_().split('T')[0];
     const newPersons = Array.isArray(params.newPersons)
       ? params.newPersons
       : (params.newPerson ? [params.newPerson] : []);
@@ -394,7 +394,7 @@
   }
 
   function transferOwnership(params, caller) {
-    const transferDate = params.transferDate || NOW_ISO().split('T')[0];
+    const transferDate = params.transferDate || nowIsoTs_().split('T')[0];
 
     const fromOwnerIds = Array.isArray(params.fromOwnerIds)
       ? params.fromOwnerIds
@@ -480,7 +480,7 @@
         SalePrice: params.salePrice || '',
         DocRef: params.docRef || '',
         RecordedBy: caller.email,
-        RecordedAt: NOW_ISO()
+        RecordedAt: nowIsoTs_()
       };
       appendRow(CONFIG.TABS.TRANSFERS, tObj, caller);
       writeAuditCreate(caller, 'Transfers', transferId, tObj);
@@ -601,7 +601,7 @@
       PaymentDate: params.paymentDate, ReceiptNo: params.receiptNo || '',
       BankRef: params.bankRef || '', ProofURL: params.proofUrl || '',
       FlaggedForAttention: 'FALSE', FlagComment: '', FlaggedBy: '', FlaggedAt: '',
-      RecordedBy: caller.email, RecordedAt: NOW_ISO()
+      RecordedBy: caller.email, RecordedAt: nowIsoTs_()
     };
     appendRow(CONFIG.TABS.PAYMENTS, obj, caller);
     writeAuditCreate(caller, 'Payments', id, obj);
@@ -620,7 +620,7 @@
         String(params.FlaggedForAttention).toLowerCase() === 'true';
       fields.FlaggedForAttention = flagging ? 'TRUE' : 'FALSE';
       fields.FlaggedBy = caller.email;
-      fields.FlaggedAt = NOW_ISO();
+      fields.FlaggedAt = nowIsoTs_();
       if (!flagging && params.FlagComment === undefined) {
         fields.FlagComment = '';
       }
@@ -704,13 +704,13 @@
     const id = nextId('L', CONFIG.TABS.CALL_LOG, 'LogID');
     const obj = {
       LogID: id, SiteID: params.siteId, OwnerID: params.ownerId || '',
-      LogDate: params.logDate || NOW_ISO().split('T')[0],
+      LogDate: params.logDate || nowIsoTs_().split('T')[0],
       CalledBy: caller.displayName,
       Summary: params.summary,
       FollowUpAction: params.followUpAction || '',
       AssignedTo: params.assignedTo || '',
       AssignedToName: params.assignedToName || '',
-      FollowUpDone: 'FALSE', DoneBy: '', DoneAt: '', LoggedAt: NOW_ISO()
+      FollowUpDone: 'FALSE', DoneBy: '', DoneAt: '', LoggedAt: nowIsoTs_()
     };
     appendRow(CONFIG.TABS.CALL_LOG, obj, caller);
     // No audit log for call log entries per spec
@@ -741,7 +741,7 @@
 
   function markFollowUpDone(params, caller) {
     const fields = {
-      FollowUpDone: 'TRUE', DoneBy: caller.email, DoneAt: NOW_ISO()
+      FollowUpDone: 'TRUE', DoneBy: caller.email, DoneAt: nowIsoTs_()
     };
 
     const resolutionComment = String(params.resolutionComment || '').trim();
@@ -902,7 +902,7 @@
     const id = params.email;
     const obj = {
       UserEmail: id, DisplayName: params.displayName || params.email,
-      Role: params.role, AddedBy: caller.email, AddedAt: NOW_ISO()
+      Role: params.role, AddedBy: caller.email, AddedAt: nowIsoTs_()
     };
     appendRow(CONFIG.TABS.ROLES, obj, caller);
     writeAuditCreate(caller, 'Roles', id, obj);
