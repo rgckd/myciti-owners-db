@@ -118,7 +118,8 @@ function SitesReport() {
         if (h.AmountType === 'Flat') expected = parseFloat(h.ExpectedAmountFlat) || 0
         else if (site.Sizesqft) expected = (parseFloat(h.ExpectedAmountPerSqft) || 0) * parseFloat(site.Sizesqft)
         const due = expected != null ? Math.max(0, expected - paid) : null
-        return { headId: h.HeadID, paid, expected, due }
+        const isZeroExpected = expected != null && expected <= 0
+        return { headId: h.HeadID, paid, expected, due, isZeroExpected }
       })
       return { ...site, headDues }
     })
@@ -149,7 +150,7 @@ function SitesReport() {
       r.ownerName || '', r.membershipNo || '', r.mobile || '',
       STATUS_LABEL[r.payStatus] || r.payStatus || '',
       r.FlaggedForAttention === 'TRUE' ? 'Yes' : 'No',
-      ...r.headDues.flatMap(d => [d.paid || 0, d.due ?? ''])
+      ...r.headDues.flatMap(d => [d.paid || 0, d.isZeroExpected ? '' : (d.due ?? '')])
     ])
     downloadCSV([headers, ...data], `sites-${new Date().toISOString().slice(0, 10)}.csv`)
   }
@@ -258,6 +259,14 @@ function SitesReport() {
                     <td key={d.headId} style={{ padding: '7px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {d.expected == null ? (
                         <span style={{ color: 'var(--ink-3)' }}>—</span>
+                      ) : d.isZeroExpected ? (
+                        d.paid > 0 ? (
+                          <span style={{ fontWeight: 600, color: 'var(--paid)' }}>
+                            {formatCurrency(d.paid)} received
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--ink-3)' }}>—</span>
+                        )
                       ) : (
                         <>
                           <span style={{ fontWeight: 600, color: d.due > 0 ? 'var(--partial)' : 'var(--paid)' }}>

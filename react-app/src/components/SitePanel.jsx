@@ -112,10 +112,12 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
       return {
         headId: h.HeadID, headName: h.HeadName, amountType: h.AmountType,
         expected, paid, outstanding, sizeMissing,
+        isZeroExpected: expected != null && expected <= 0,
         status: sizeMissing ? 'size_missing' : outstanding <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid',
         payments: sitePays
       }
     })
+    .filter(d => d.sizeMissing || !d.isZeroExpected || d.paid > 0)
 
   function openFlagModal(flag) {
     setPendingFlag(flag)
@@ -990,11 +992,16 @@ function InfoRow({ label, value }) {
 function DuesRow({ due }) {
   const statusColors = {
     paid:         { color: 'var(--paid)' },
+    received:     { color: 'var(--paid)' },
     partial:      { color: 'var(--partial)' },
     unpaid:       { color: 'var(--partial)' },
+    not_applicable: { color: 'var(--ink-3)' },
     size_missing: { color: 'var(--ink-3)' },
   }
-  const { color } = statusColors[due.status] || statusColors.unpaid
+  const displayStatus = due.isZeroExpected
+    ? (due.paid > 0 ? 'received' : 'not_applicable')
+    : due.status
+  const { color } = statusColors[displayStatus] || statusColors.unpaid
 
   return (
     <div style={{ padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
@@ -1004,6 +1011,10 @@ function DuesRow({ due }) {
         </div>
         {due.sizeMissing ? (
           <span style={{ fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>Size needed</span>
+        ) : due.isZeroExpected ? (
+          <div style={{ flexShrink: 0, textAlign: 'right' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color }}>{formatCurrency(due.paid)} received</span>
+          </div>
         ) : (
           <div style={{ flexShrink: 0, textAlign: 'right' }}>
             <span style={{ fontSize: 12, fontWeight: 600, color }}>{formatCurrency(due.outstanding)} due</span>
