@@ -580,6 +580,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
       {selectedPayment && (
         <PaymentDetailModal
           payment={selectedPayment}
+          site={site}
           heads={heads}
           role={role}
           onClose={() => setSelectedPayment(null)}
@@ -1040,7 +1041,7 @@ function DetailRow({ label, value, bold, mono }) {
   )
 }
 
-function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
+function PaymentDetailModal({ payment, site, heads, role, onClose, onSaved }) {
   const head = heads.find(h => h.HeadID === payment.HeadID)
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -1066,6 +1067,8 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
     }
     return list
   }, [heads, payment.HeadID])
+  const displayPhase = payment.Phase || site?.Phase || ''
+  const displaySiteNo = payment.SiteNo || site?.SiteNo || ''
 
   async function handleFileSelect(e) {
     const file = e.target.files?.[0]
@@ -1130,7 +1133,7 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
           <div>
             <div style={{ fontWeight: 600, fontSize: 14 }}>{editing ? 'Edit payment' : (head?.HeadName || payment.HeadID)}</div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
-              {payment.SiteNo ? `Site ${payment.SiteNo} · Ph ${payment.Phase}` : payment.SiteID}
+              {displaySiteNo ? `Site ${displaySiteNo} · Ph ${displayPhase}` : (payment.SiteID || site?.SiteID || '—')}
               {payment.OwnerName ? ` — ${payment.OwnerName}` : ''}
             </div>
           </div>
@@ -1167,11 +1170,11 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
                     <div>Phase</div>
-                    <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>Phase {payment.Phase || '—'}</div>
+                    <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>Phase {displayPhase || '—'}</div>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
                     <div>Site number</div>
-                    <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>{payment.SiteNo || '—'}</div>
+                    <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>{displaySiteNo || '—'}</div>
                   </div>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 8 }}>
