@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { getSite, getPayments, getPaymentHeads, getCallLog, flagSite, updateSite, archiveSite, updatePerson, updateOwner, removeOwnerFromSite, updatePayment, deletePayment, createCallLog, updateCallLog, markFollowUpDone, reopenFollowUp, getAssignableUsers, uploadFileToDrive } from '../utils/api.js'
 import { canEdit, canFlag, formatCurrency, formatDate, initials, toDateInput, PAYMENT_MODES, SITE_TYPES, SITE_TYPE_SQFT } from '../utils/constants.js'
 import PaymentModal from './PaymentModal.jsx'
@@ -1044,6 +1044,7 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
   const head = heads.find(h => h.HeadID === payment.HeadID)
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [selectedHeadId, setSelectedHeadId] = useState(payment.HeadID || '')
   const [form, setForm] = useState({
     amount: String(payment.Amount || ''),
     mode: payment.Mode || '',
@@ -1052,16 +1053,47 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
     bankRef: payment.BankRef || '',
     proofUrl: payment.ProofURL || '',
   })
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+  const fileInputRef = useRef(null)
   const canEditPayment = canEdit(role, 'payments')
+  const headOptions = useMemo(() => {
+    const list = Array.isArray(heads) ? [...heads] : []
+    if (payment.HeadID && !list.some(h => h.HeadID === payment.HeadID)) {
+      list.unshift({ HeadID: payment.HeadID, HeadName: payment.HeadID, IsActive: 'FALSE' })
+    }
+    return list
+  }, [heads, payment.HeadID])
+
+  async function handleFileSelect(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    setUploading(true)
+    setError('')
+    try {
+      const url = await uploadFileToDrive(file, 'Payments', payment.PaymentID)
+      setForm(f => ({ ...f, proofUrl: url }))
+    } catch (err) {
+      setError(err.message || 'Receipt upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   async function handleSave() {
+    if (!selectedHeadId) {
+      setError('Payment head is required')
+      return
+    }
     setSaving(true); setError('')
     try {
       await updatePayment({
         paymentId: payment.PaymentID,
+        HeadID: selectedHeadId,
         Amount: Number(form.amount),
         Mode: form.mode,
         PaymentDate: form.date,
@@ -1085,9 +1117,15 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
-      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 380, border: '1px solid var(--border)' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 420, border: '1px solid var(--border)' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{head?.HeadName || payment.HeadID}</div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{editing ? 'Edit payment' : (head?.HeadName || payment.HeadID)}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
+              {payment.SiteNo ? `Site ${payment.SiteNo} · Ph ${payment.Phase}` : payment.SiteID}
+              {payment.OwnerName ? ` — ${payment.OwnerName}` : ''}
+            </div>
+          </div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
 
@@ -1120,16 +1158,109 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
                   {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
-              <EditField label="Date" value={form.date} onChange={v => setForm(f => ({ ...f, date: v }))} type="date" />
-              <EditField label="Receipt #" value={form.receiptNo} onChange={v => setForm(f => ({ ...f, receiptNo: v }))} />
-              <EditField label="Bank ref" value={form.bankRef} onChange={v => setForm(f => ({ ...f, bankRef: v }))} />
-              <EditField label="Proof URL" value={form.proofUrl} onChange={v => setForm(f => ({ ...f, proofUrl: v }))} />
-            </>
-          ) : (
-            <>
-              <DetailRow label="Amount" value={formatCurrency(payment.Amount)} bold />
-              <DetailRow label="Date" value={formatDate(payment.PaymentDate)} />
-              <DetailRow label="Mode" value={payment.Mode} />
+                    <div style={{
+                      padding: '10px 12px', borderRadius: 10,
+                      border: '1px solid var(--border)', background: 'var(--surface-2)'
+                    }}>
+                      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 6 }}>Site mapping</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                          <div>Phase</div>
+                          <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>Phase {payment.Phase || '—'}</div>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                          <div>Site number</div>
+                          <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>{payment.SiteNo || '—'}</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 8 }}>
+                        Site/phase remapping is only available in the Payments page.
+                      </div>
+                  <input
+
+                    <div>
+                      <label className="label">Payment head</label>
+                      <select className="input" value={selectedHeadId} onChange={e => setSelectedHeadId(e.target.value)}>
+                        <option value="">Select payment head</option>
+                        {headOptions.map(h => (
+                          <option key={h.HeadID} value={h.HeadID}>{h.HeadName}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label className="label">Amount (₹)</label>
+                        <input className="input" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="label">Transaction date</label>
+                        <input className="input" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="label">Payment mode</label>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {PAYMENT_MODES.map(m => (
+                          <button key={m} className="btn btn-sm"
+                            style={form.mode === m ? {
+                              background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)', flex: 1
+                            } : { flex: 1 }}
+                            onClick={() => setForm(f => ({ ...f, mode: m }))}>{m}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label className="label">Receipt no.</label>
+                        <input className="input" value={form.receiptNo} onChange={e => setForm(f => ({ ...f, receiptNo: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="label">Bank ref / UTR</label>
+                        <input className="input" value={form.bankRef} onChange={e => setForm(f => ({ ...f, bankRef: e.target.value }))} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="label">Receipt / proof</label>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*,.pdf"
+                        style={{ display: 'none' }}
+                        onChange={handleFileSelect}
+                      />
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          type="button"
+                          disabled={uploading}
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                          {uploading ? 'Uploading…' : '↑ Upload receipt'}
+                        </button>
+                        <input
+                          className="input"
+                          value={form.proofUrl}
+                          onChange={e => setForm(f => ({ ...f, proofUrl: e.target.value }))}
+                          placeholder="Or paste Drive link"
+                          style={{ flex: 1 }}
+                        />
+                      </div>
+                      {form.proofUrl && (
+                        <a
+                          href={form.proofUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: 11, color: 'var(--tc)', marginTop: 4, display: 'inline-block', textDecoration: 'none' }}
+                        >
+                          View uploaded receipt ↗
+                        </a>
+                      )}
+                    </div>
               {payment.ReceiptNo && <DetailRow label="Receipt #" value={`#${payment.ReceiptNo}`} />}
               {payment.BankRef && <DetailRow label="Bank ref" value={payment.BankRef} mono />}
               {payment.ProofURL && (
@@ -1156,7 +1287,7 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
             {editing ? (
               <>
                 <button className="btn btn-sm" onClick={() => setEditing(false)}>Cancel</button>
-                <button className="btn btn-primary btn-sm" disabled={saving} onClick={handleSave}>
+                <button className="btn btn-primary btn-sm" disabled={saving || uploading} onClick={handleSave}>
                   {saving ? 'Saving…' : 'Save'}
                 </button>
               </>
