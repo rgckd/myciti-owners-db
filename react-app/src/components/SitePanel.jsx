@@ -1162,26 +1162,6 @@ function PaymentDetailModal({ payment, site, heads, role, onClose, onSaved }) {
             </div>
           ) : editing ? (
             <>
-              <div style={{
-                padding: '10px 12px', borderRadius: 10,
-                border: '1px solid var(--border)', background: 'var(--surface-2)'
-              }}>
-                <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 6 }}>Site mapping</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                    <div>Phase</div>
-                    <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>Phase {displayPhase || '—'}</div>
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                    <div>Site number</div>
-                    <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>{displaySiteNo || '—'}</div>
-                  </div>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 8 }}>
-                  Site/phase remapping is only available in the Payments page.
-                </div>
-              </div>
-
               <div>
                 <label className="label">Payment head</label>
                 <select className="input" value={selectedHeadId} onChange={e => setSelectedHeadId(e.target.value)}>
