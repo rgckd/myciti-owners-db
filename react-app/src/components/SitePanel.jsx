@@ -1089,7 +1089,8 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
       setError('Payment head is required')
       return
     }
-    setSaving(true); setError('')
+    setSaving(true)
+    setError('')
     try {
       await updatePayment({
         paymentId: payment.PaymentID,
@@ -1102,8 +1103,11 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
         ProofURL: form.proofUrl,
       })
       onSaved()
-    } catch (e) { setError(e.message) }
-    finally { setSaving(false) }
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleDelete() {
@@ -1111,8 +1115,12 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
     try {
       await deletePayment(payment.PaymentID)
       onSaved()
-    } catch (e) { setError(e.message); setConfirmDelete(false) }
-    finally { setDeleting(false) }
+    } catch (e) {
+      setError(e.message)
+      setConfirmDelete(false)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
@@ -1129,7 +1137,7 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
 
-        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {confirmDelete ? (
             <div style={{ padding: '12px', background: 'var(--disputed-bg)', borderRadius: 'var(--radius-md)', border: '1px solid var(--disputed)' }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--disputed)', marginBottom: 4 }}>Delete this payment?</div>
@@ -1151,116 +1159,120 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
             </div>
           ) : editing ? (
             <>
-              <EditField label="Amount (₹)" value={form.amount} onChange={v => setForm(f => ({ ...f, amount: v }))} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, color: 'var(--ink-3)', minWidth: 80, textAlign: 'right' }}>Mode</span>
-                <select className="input" style={{ flex: 1, padding: '4px 8px', fontSize: 12 }} value={form.mode} onChange={e => setForm(f => ({ ...f, mode: e.target.value }))}>
-                  {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+              <div style={{
+                padding: '10px 12px', borderRadius: 10,
+                border: '1px solid var(--border)', background: 'var(--surface-2)'
+              }}>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 6 }}>Site mapping</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                    <div>Phase</div>
+                    <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>Phase {payment.Phase || '—'}</div>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                    <div>Site number</div>
+                    <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>{payment.SiteNo || '—'}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 8 }}>
+                  Site/phase remapping is only available in the Payments page.
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Payment head</label>
+                <select className="input" value={selectedHeadId} onChange={e => setSelectedHeadId(e.target.value)}>
+                  <option value="">Select payment head</option>
+                  {headOptions.map(h => (
+                    <option key={h.HeadID} value={h.HeadID}>{h.HeadName}</option>
+                  ))}
                 </select>
               </div>
-                    <div style={{
-                      padding: '10px 12px', borderRadius: 10,
-                      border: '1px solid var(--border)', background: 'var(--surface-2)'
-                    }}>
-                      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 6 }}>Site mapping</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                          <div>Phase</div>
-                          <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>Phase {payment.Phase || '—'}</div>
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                          <div>Site number</div>
-                          <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>{payment.SiteNo || '—'}</div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 8 }}>
-                        Site/phase remapping is only available in the Payments page.
-                      </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label className="label">Amount (₹)</label>
+                  <input className="input" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Transaction date</label>
+                  <input className="input" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Payment mode</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {PAYMENT_MODES.map(m => (
+                    <button
+                      key={m}
+                      className="btn btn-sm"
+                      style={form.mode === m
+                        ? { background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)', flex: 1 }
+                        : { flex: 1 }}
+                      onClick={() => setForm(f => ({ ...f, mode: m }))}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label className="label">Receipt no.</label>
+                  <input className="input" value={form.receiptNo} onChange={e => setForm(f => ({ ...f, receiptNo: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Bank ref / UTR</label>
+                  <input className="input" value={form.bankRef} onChange={e => setForm(f => ({ ...f, bankRef: e.target.value }))} />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Receipt / proof</label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,.pdf"
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                />
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    type="button"
+                    disabled={uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                  >
+                    {uploading ? 'Uploading…' : '↑ Upload receipt'}
+                  </button>
                   <input
-
-                    <div>
-                      <label className="label">Payment head</label>
-                      <select className="input" value={selectedHeadId} onChange={e => setSelectedHeadId(e.target.value)}>
-                        <option value="">Select payment head</option>
-                        {headOptions.map(h => (
-                          <option key={h.HeadID} value={h.HeadID}>{h.HeadName}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      <div>
-                        <label className="label">Amount (₹)</label>
-                        <input className="input" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="label">Transaction date</label>
-                        <input className="input" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="label">Payment mode</label>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        {PAYMENT_MODES.map(m => (
-                          <button key={m} className="btn btn-sm"
-                            style={form.mode === m ? {
-                              background: 'var(--tc-light)', color: 'var(--tc)', borderColor: 'var(--tc-mid)', flex: 1
-                            } : { flex: 1 }}
-                            onClick={() => setForm(f => ({ ...f, mode: m }))}>{m}</button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      <div>
-                        <label className="label">Receipt no.</label>
-                        <input className="input" value={form.receiptNo} onChange={e => setForm(f => ({ ...f, receiptNo: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="label">Bank ref / UTR</label>
-                        <input className="input" value={form.bankRef} onChange={e => setForm(f => ({ ...f, bankRef: e.target.value }))} />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="label">Receipt / proof</label>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,.pdf"
-                        style={{ display: 'none' }}
-                        onChange={handleFileSelect}
-                      />
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          type="button"
-                          disabled={uploading}
-                          onClick={() => fileInputRef.current?.click()}
-                          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                        >
-                          {uploading ? 'Uploading…' : '↑ Upload receipt'}
-                        </button>
-                        <input
-                          className="input"
-                          value={form.proofUrl}
-                          onChange={e => setForm(f => ({ ...f, proofUrl: e.target.value }))}
-                          placeholder="Or paste Drive link"
-                          style={{ flex: 1 }}
-                        />
-                      </div>
-                      {form.proofUrl && (
-                        <a
-                          href={form.proofUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ fontSize: 11, color: 'var(--tc)', marginTop: 4, display: 'inline-block', textDecoration: 'none' }}
-                        >
-                          View uploaded receipt ↗
-                        </a>
-                      )}
-                    </div>
+                    className="input"
+                    value={form.proofUrl}
+                    onChange={e => setForm(f => ({ ...f, proofUrl: e.target.value }))}
+                    placeholder="Or paste Drive link"
+                    style={{ flex: 1 }}
+                  />
+                </div>
+                {form.proofUrl && (
+                  <a
+                    href={form.proofUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 11, color: 'var(--tc)', marginTop: 4, display: 'inline-block', textDecoration: 'none' }}
+                  >
+                    View uploaded receipt ↗
+                  </a>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <DetailRow label="Amount" value={formatCurrency(payment.Amount)} bold />
+              <DetailRow label="Date" value={formatDate(payment.PaymentDate)} />
+              <DetailRow label="Mode" value={payment.Mode} />
               {payment.ReceiptNo && <DetailRow label="Receipt #" value={`#${payment.ReceiptNo}`} />}
               {payment.BankRef && <DetailRow label="Bank ref" value={payment.BankRef} mono />}
               {payment.ProofURL && (
@@ -1273,7 +1285,12 @@ function PaymentDetailModal({ payment, heads, role, onClose, onSaved }) {
               <DetailRow label="Recorded at" value={formatDate(payment.RecordedAt)} />
             </>
           )}
-          {error && <div style={{ fontSize: 12, padding: '8px 12px', background: 'var(--disputed-bg)', color: 'var(--disputed)', borderRadius: 'var(--radius-md)' }}>{error}</div>}
+
+          {error && (
+            <div style={{ fontSize: 12, padding: '8px 12px', background: 'var(--disputed-bg)', color: 'var(--disputed)', borderRadius: 'var(--radius-md)' }}>
+              {error}
+            </div>
+          )}
         </div>
 
         {!confirmDelete && (
