@@ -3,7 +3,27 @@ import { canEdit, formatCurrency, formatDate, toDateInput, PAYMENT_MODES } from 
 import { updatePayment, deletePayment, uploadFileToDrive, generatePaymentReceipt } from '../utils/api.js'
 import PaymentReceiptModal from './PaymentReceiptModal.jsx'
 
-export default function PaymentDetailModal({ payment, site, heads, role, onClose, onSaved }) {
+function formatOwnerDisplay(ownerName, membershipNo) {
+  const name = String(ownerName || '').trim()
+  const membership = String(membershipNo || '').trim()
+  if (name && membership) return `${name} (${membership})`
+  if (name) return name
+  if (membership) return `Member ID ${membership}`
+  return ''
+}
+
+function getFallbackOwnerFromCurrentOwners(currentOwners, paymentOwnerId) {
+  const list = Array.isArray(currentOwners) ? currentOwners : []
+  const exactOwner = list.find(o => String(o?.OwnerID || '') === String(paymentOwnerId || ''))
+  const firstOwner = exactOwner || list[0] || null
+  if (!firstOwner) return { ownerName: '', membershipNo: '' }
+  return {
+    ownerName: String(firstOwner?.person?.FullName || '').trim(),
+    membershipNo: String(firstOwner?.MembershipNo || '').trim(),
+  }
+}
+
+export default function PaymentDetailModal({ payment, site, currentOwners, heads, role, onClose, onSaved }) {
   const head = heads.find(h => h.HeadID === payment.HeadID)
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -96,12 +116,20 @@ export default function PaymentDetailModal({ payment, site, heads, role, onClose
     setError('')
     try {
       const result = await generatePaymentReceipt(payment.PaymentID)
+      const fallbackOwner = getFallbackOwnerFromCurrentOwners(currentOwners, payment.OwnerID)
+      const ownerName =
+        result.ownerName ||
+        payment.OwnerName ||
+        payment.ownerName ||
+        fallbackOwner.ownerName ||
+        ''
+      const membershipNo = result.membershipNo || fallbackOwner.membershipNo || ''
       setForm(f => ({ ...f, receiptNo: result.receiptNo }))
       setReceiptData({
         receiptNo: result.receiptNo,
         issueDate: result.issueDate,
         receiptDateKey: result.receiptDateKey,
-        ownerName: payment.OwnerName || payment.ownerName || '',
+        ownerName: formatOwnerDisplay(ownerName, membershipNo),
         siteNo: displaySiteNo,
         phase: displayPhase,
         headName: head?.HeadName || payment.HeadID,

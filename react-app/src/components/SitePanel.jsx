@@ -608,6 +608,7 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
         <PaymentDetailModal
           payment={selectedPayment}
           site={site}
+          currentOwners={currentOwners}
           heads={heads}
           role={role}
           onClose={() => setSelectedPayment(null)}

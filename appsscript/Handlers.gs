@@ -687,6 +687,16 @@
       const payment = payments.find(p => p.PaymentID === params.paymentId);
       if (!payment) throw new Error('Payment not found: ' + params.paymentId);
 
+      const owners = sheetToObjects(CONFIG.TABS.OWNERS);
+      const people = sheetToObjects(CONFIG.TABS.PEOPLE);
+      const peopleMap = Object.fromEntries(people.map(p => [p.PersonID, p]));
+      const linkedOwner = owners.find(o => o.OwnerID === payment.OwnerID);
+      const fallbackCurrentOwner = owners.find(o =>
+        o.SiteID === payment.SiteID && (o.IsCurrent === 'TRUE' || o.IsCurrent === true)
+      );
+      const receiptOwner = linkedOwner || fallbackCurrentOwner || null;
+      const receiptPerson = receiptOwner ? peopleMap[receiptOwner.PersonID] : null;
+
       let receiptNo = String(payment.ReceiptNo || '').trim();
       if (!receiptNo) {
         const todayKey = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd');
@@ -718,6 +728,8 @@
         issueDate,
         receiptDateKey: parsed ? parsed.dateKey : issueDate.replace(/-/g, ''),
         recordedByName,
+        ownerName: receiptPerson ? String(receiptPerson.FullName || '').trim() : '',
+        membershipNo: receiptOwner ? String(receiptOwner.MembershipNo || '').trim() : '',
       };
     } finally {
       lock.releaseLock();
