@@ -39,35 +39,49 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
   const [idCardOwner, setIdCardOwner] = useState(null)
 
   const fetchedTabs = useRef(new Set())
+  const requestSeq = useRef(0)
 
   // Initial load — site only so Overview appears immediately
   const loadSite = useCallback(async (silent = false) => {
+    const seq = requestSeq.current
     if (!silent) setLoading(true)
     try {
-      setData(await getSite(siteId))
+      const siteData = await getSite(siteId)
+      if (seq !== requestSeq.current) return
+      setData(siteData)
       fetchedTabs.current.add('Overview')
     } catch (e) { console.error(e) }
-    finally { setLoading(false) }
+    finally {
+      if (seq === requestSeq.current) setLoading(false)
+    }
   }, [siteId])
 
   const loadPayments = useCallback(async () => {
+    const seq = requestSeq.current
     setPaymentsLoading(true)
     try {
       const [paysData, headsData] = await Promise.all([getPayments({ siteId }), getPaymentHeads()])
+      if (seq !== requestSeq.current) return
       setPayments(paysData); setHeads(headsData)
       fetchedTabs.current.add('Payments')
     } catch (e) { console.error(e) }
-    finally { setPaymentsLoading(false) }
+    finally {
+      if (seq === requestSeq.current) setPaymentsLoading(false)
+    }
   }, [siteId])
 
   const loadCallLog = useCallback(async () => {
+    const seq = requestSeq.current
     setCallLogLoading(true)
     try {
       const [logsData, usersData] = await Promise.all([getCallLog({ siteId }), getAssignableUsers()])
+      if (seq !== requestSeq.current) return
       setCallLog(logsData); setAssignableUsers(usersData)
       fetchedTabs.current.add('Call log')
     } catch (e) { console.error(e) }
-    finally { setCallLogLoading(false) }
+    finally {
+      if (seq === requestSeq.current) setCallLogLoading(false)
+    }
   }, [siteId])
 
   // Full reload after mutations — reloads site + any tab already visited
@@ -77,6 +91,18 @@ export default function SitePanel({ siteId, onClose, onRefresh, role }) {
     if (fetchedTabs.current.has('Call log')) reloads.push(loadCallLog())
     await Promise.all(reloads)
   }, [loadSite, loadPayments, loadCallLog])
+
+  useEffect(() => {
+    requestSeq.current += 1
+    fetchedTabs.current = new Set()
+    setData(null)
+    setPayments([])
+    setHeads([])
+    setCallLog([])
+    setLoading(true)
+    setPaymentsLoading(false)
+    setCallLogLoading(false)
+  }, [siteId])
 
   useEffect(() => { loadSite() }, [loadSite])
 
