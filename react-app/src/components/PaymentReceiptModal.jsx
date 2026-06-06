@@ -139,7 +139,12 @@ function drawReceipt(canvas, data, seal) {
   ctx.font = '500 18px Segoe UI, Arial, sans-serif'
   ctx.fillText('This is a digitally generated receipt.', 34, y)
 
-  y += 40
+  y += 36
+  ctx.fillStyle = '#D85A30'
+  ctx.font = '600 22px Segoe UI, Arial, sans-serif'
+  ctx.fillText('Thank you for your payment.', 34, y)
+
+  y += 38
   ctx.fillStyle = '#6A6860'
   ctx.font = '500 17px Segoe UI, Arial, sans-serif'
   RECEIPT_CONTACT_LINES.forEach(line => {
