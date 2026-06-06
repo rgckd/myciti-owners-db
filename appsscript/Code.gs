@@ -29,6 +29,114 @@ const CONFIG = {
   }
 };
 
+// Keep public actions empty by default. Add here only when explicitly needed.
+const PUBLIC_ACTIONS = new Set([]);
+
+// Central action policy map so new routes do not accidentally skip auth checks.
+const ACTION_POLICY = {
+  // Sites
+  getSites: { type: 'domain', domain: 'owners', level: 'view' },
+  getArchivedSites: { type: 'admin' },
+  getSite: { type: 'domain', domain: 'owners', level: 'view' },
+  createSite: { type: 'admin' },
+  updateSite: { type: 'domain', domain: 'owners', level: 'edit' },
+  archiveSite: { type: 'admin' },
+  unarchiveSite: { type: 'admin' },
+  flagSite: { type: 'flag' },
+
+  // People
+  getPeople: { type: 'domain', domain: 'owners', level: 'view' },
+  getPerson: { type: 'domain', domain: 'owners', level: 'view' },
+  createPerson: { type: 'domain', domain: 'owners', level: 'edit' },
+  updatePerson: { type: 'domain', domain: 'owners', level: 'edit' },
+
+  // Owners
+  getOwners: { type: 'domain', domain: 'owners', level: 'view' },
+  createOwner: { type: 'domain', domain: 'owners', level: 'edit' },
+  updateOwner: { type: 'domain', domain: 'owners', level: 'edit' },
+  removeOwnerFromSite: { type: 'domain', domain: 'owners', level: 'edit' },
+  addOwnersToSite: { type: 'domain', domain: 'owners', level: 'edit' },
+  transferOwnership: { type: 'domain', domain: 'owners', level: 'edit' },
+
+  // Agents
+  getAgents: { type: 'domain', domain: 'owners', level: 'view' },
+  createAgent: { type: 'domain', domain: 'owners', level: 'edit' },
+  updateAgent: { type: 'domain', domain: 'owners', level: 'edit' },
+  softDeleteAgent: { type: 'domain', domain: 'owners', level: 'edit' },
+
+  // Payments
+  getPayments: { type: 'domain', domain: 'payments', level: 'view' },
+  createPayment: { type: 'domain', domain: 'payments', level: 'edit' },
+  updatePayment: { type: 'domain', domain: 'payments', level: 'edit' },
+  deletePayment: { type: 'domain', domain: 'payments', level: 'edit' },
+  getPaymentHeads: { type: 'domain', domain: 'payments', level: 'view' },
+  createPaymentHead: { type: 'admin' },
+  updatePaymentHead: { type: 'admin' },
+
+  // Call log
+  getCallLog: { type: 'domain', domain: 'calllog', level: 'view' },
+  createCallLog: { type: 'domain', domain: 'calllog', level: 'edit' },
+  updateCallLog: { type: 'domain', domain: 'calllog', level: 'edit' },
+  markFollowUpDone: { type: 'domain', domain: 'calllog', level: 'edit' },
+  reopenFollowUp: { type: 'domain', domain: 'calllog', level: 'edit' },
+  getFollowUps: { type: 'domain', domain: 'calllog', level: 'view' },
+  getAssignableUsers: { type: 'domain', domain: 'calllog', level: 'view' },
+
+  // Audit
+  getAuditLog: { type: 'role', requiredRole: CONFIG.ROLES.EDIT },
+
+  // Admin
+  getUsers: { type: 'admin' },
+  addUser: { type: 'admin' },
+  updateUser: { type: 'admin' },
+  removeUser: { type: 'admin' },
+  checkSheetAccess: { type: 'admin' },
+
+  // Profile
+  whoami: { type: 'authenticated' },
+
+  // Dashboard
+  getStats: { type: 'domain', domain: 'owners', level: 'view' },
+  getDefaulters: { type: 'domain', domain: 'payments', level: 'view' },
+
+  // Verify
+  verifyMember: { type: 'domain', domain: 'owners', level: 'view' },
+
+  // Uploads
+  getUploadFolder: { type: 'uploadFolder' },
+  uploadAttachment: { type: 'uploadAttachment' },
+};
+
+function enforceActionPolicy(action, role, params) {
+  const policy = ACTION_POLICY[action];
+  if (!policy) throw new Error(`Unknown or unprotected action: ${action}`);
+
+  switch (policy.type) {
+    case 'authenticated':
+      return;
+    case 'admin':
+      return requireAdmin(role);
+    case 'flag':
+      return requireFlag(role);
+    case 'role':
+      return requireRole(role, policy.requiredRole);
+    case 'domain':
+      return requireDomain(role, policy.domain, policy.level);
+    case 'uploadFolder': {
+      const folderType = String(params.type || '').trim();
+      if (folderType === 'Payments') return requireDomain(role, 'payments', 'edit');
+      return requireDomain(role, 'owners', 'edit');
+    }
+    case 'uploadAttachment': {
+      const folderType = String(params.folderType || '').trim();
+      if (folderType === 'Payments') return requireDomain(role, 'payments', 'edit');
+      return requireDomain(role, 'owners', 'edit');
+    }
+    default:
+      throw new Error(`Unhandled policy type: ${policy.type}`);
+  }
+}
+
 // ─── MAIN HANDLERS ───────────────────────────────────────────────────────────
 
 function doGet(e) {
@@ -76,17 +184,21 @@ function handleRequest(e, method, params) {
   try {
     const action = params.action;
 
-    // Public routes — no auth required
-    if (action === 'verifyMember') {
-      return jsonResponse(verifyMember(params.membershipId));
+    // Public routes — explicitly allowlisted only.
+    if (PUBLIC_ACTIONS.has(action)) {
+      if (action === 'verifyMember') {
+        return jsonResponse(verifyMember(params.membershipId));
+      }
+      return jsonResponse({ error: `Unknown public action: ${action}` }, 400);
     }
 
-    // Auth required for all other routes
+    // Auth required for all non-public routes
     const idToken = (e.parameter && e.parameter.token) || params.token || '';
     const caller = authenticateCaller(idToken);
     if (!caller.ok) return jsonResponse({ error: caller.error }, 401);
 
     const role = caller.role;
+    enforceActionPolicy(action, role, params);
 
     switch (action) {
       // ── SITES ──
@@ -155,6 +267,9 @@ function handleRequest(e, method, params) {
       // ── DASHBOARD ──
       case 'getStats':          return jsonResponse(getStats());
       case 'getDefaulters':     requireDomain(role,'payments','view'); return jsonResponse(getDefaulters(params));
+
+      // ── VERIFY ──
+      case 'verifyMember':      return jsonResponse(verifyMember(params.membershipId));
 
       // ── FILE UPLOAD URL ──
       case 'getUploadFolder':   return jsonResponse(getUploadFolder(params));
