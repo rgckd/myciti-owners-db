@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatCurrency, formatDate } from '../utils/constants.js'
 
+const RECEIPT_CONTACT_LINES = [
+  'The MyCiti Owners Association (R)',
+  'MyCiti, Heggadgere Village',
+  'Ramanagara Taluk, Bengaluru Rural District',
+  'Contact Treasurer: Mr. Vijay Kumar · +91 98451 5747',
+  'Email: mycitilayout@gmail.com (for questions)',
+]
+
 export default function PaymentReceiptModal({ receipt, onClose }) {
   const canvasRef = useRef(null)
   const [downloading, setDownloading] = useState(false)
@@ -84,7 +92,7 @@ function drawReceipt(canvas, data, seal) {
   ctx.fillRect(0, 0, w, 120)
   ctx.fillStyle = '#FAECE7'
   ctx.font = '700 40px Segoe UI, Arial, sans-serif'
-  ctx.fillText('MYCITI OWNERS ASSOCIATION', 34, 56)
+  ctx.fillText('MYCITI OWNERS ASSOCIATION (R)', 34, 56)
   ctx.font = '500 22px Segoe UI, Arial, sans-serif'
   ctx.fillStyle = '#F9B39B'
   ctx.fillText('Bidadi, Ramanagara District', 34, 92)
@@ -92,7 +100,7 @@ function drawReceipt(canvas, data, seal) {
   if (seal) {
     ctx.save()
     ctx.globalAlpha = 0.13
-    ctx.drawImage(seal, w - 360, h - 420, 300, 300)
+    ctx.drawImage(seal, w - 305, 515, 250, 250)
     ctx.restore()
   }
 
@@ -137,6 +145,14 @@ function drawReceipt(canvas, data, seal) {
   ctx.fillStyle = '#5F5E5A'
   ctx.font = '500 18px Segoe UI, Arial, sans-serif'
   ctx.fillText('This is a digitally generated receipt.', 34, y)
+
+  y += 40
+  ctx.fillStyle = '#6A6860'
+  ctx.font = '500 17px Segoe UI, Arial, sans-serif'
+  RECEIPT_CONTACT_LINES.forEach(line => {
+    ctx.fillText(line, 34, y)
+    y += 28
+  })
 }
 
 function drawRow(ctx, label, value, x, y) {

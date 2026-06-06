@@ -110,7 +110,7 @@ export default function PaymentDetailModal({ payment, site, heads, role, onClose
         mode: payment.Mode,
         bankRef: payment.BankRef || '',
         paymentDate: payment.PaymentDate,
-        recordedBy: payment.RecordedBy || '',
+        recordedBy: result.recordedByName || 'Automated',
       })
       setShowReceiptModal(true)
     } catch (e) {
@@ -133,7 +133,11 @@ export default function PaymentDetailModal({ payment, site, heads, role, onClose
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {canEditPayment && !editing && !confirmDelete && (
-              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--disputed)' }} onClick={() => setConfirmDelete(true)}>
+              <button
+                className="btn btn-sm"
+                style={{ color: 'var(--disputed)', borderColor: 'var(--disputed-bg)', background: '#fff' }}
+                onClick={() => setConfirmDelete(true)}
+              >
                 Delete
               </button>
             )}
@@ -280,7 +284,7 @@ export default function PaymentDetailModal({ payment, site, heads, role, onClose
         {!confirmDelete && (
           <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
             {!editing && (
-              <button className="btn btn-ghost btn-sm" onClick={handleGenerateReceipt} disabled={generatingReceipt}>
+              <button className="btn btn-sm" onClick={handleGenerateReceipt} disabled={generatingReceipt}>
                 {generatingReceipt ? 'Generating...' : 'Generate receipt'}
               </button>
             )}

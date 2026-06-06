@@ -37,6 +37,17 @@
     return next;
   }
 
+  function lookupRoleDisplayNameByEmail_(email) {
+    const target = String(email || '').trim().toLowerCase();
+    if (!target) return '';
+    const roles = sheetToObjectsAll(CONFIG.TABS.ROLES);
+    const row = roles.find(r =>
+      String(r.UserEmail || '').trim().toLowerCase() === target &&
+      String(r.IsDeleted || '').toUpperCase() !== 'TRUE'
+    );
+    return row ? String(row.DisplayName || row.UserEmail || '').trim() : '';
+  }
+
   // ─── SITES ───────────────────────────────────────────────────────────────────
 
   function getSites(params) {
@@ -699,12 +710,14 @@
         issueDate = String(payment.PaymentDate);
       }
       issueDate = issueDate || todayIso;
+      const recordedByName = lookupRoleDisplayNameByEmail_(payment.RecordedBy) || 'Automated';
 
       return {
         paymentId: params.paymentId,
         receiptNo,
         issueDate,
         receiptDateKey: parsed ? parsed.dateKey : issueDate.replace(/-/g, ''),
+        recordedByName,
       };
     } finally {
       lock.releaseLock();
