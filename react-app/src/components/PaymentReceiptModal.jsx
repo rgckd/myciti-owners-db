@@ -178,20 +178,47 @@ function wrapTextLines(ctx, text, maxWidth, font) {
     return ['-']
   }
 
-  const lines = []
-  let current = words[0]
+  const expanded = []
+  words.forEach(word => {
+    if (ctx.measureText(word).width <= maxWidth) {
+      expanded.push(word)
+      return
+    }
+    splitLongTokenByWidth(ctx, word, maxWidth).forEach(part => expanded.push(part))
+  })
 
-  for (let i = 1; i < words.length; i += 1) {
-    const candidate = `${current} ${words[i]}`
+  const lines = []
+  let current = expanded[0]
+
+  for (let i = 1; i < expanded.length; i += 1) {
+    const candidate = `${current} ${expanded[i]}`
     if (ctx.measureText(candidate).width <= maxWidth) {
       current = candidate
     } else {
       lines.push(current)
-      current = words[i]
+      current = expanded[i]
     }
   }
   lines.push(current)
 
   ctx.restore()
   return lines
+}
+
+function splitLongTokenByWidth(ctx, token, maxWidth) {
+  const parts = []
+  let chunk = ''
+
+  for (const ch of token) {
+    const candidate = `${chunk}${ch}`
+    if (chunk && ctx.measureText(candidate).width > maxWidth) {
+      parts.push(chunk)
+      chunk = ch
+    } else {
+      chunk = candidate
+    }
+  }
+
+  if (chunk) parts.push(chunk)
+  return parts.length ? parts : [token]
 }
