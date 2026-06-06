@@ -118,21 +118,14 @@ function drawReceipt(canvas, data, seal) {
   ctx.fillText(`Issue Date: ${formatDate(data.issueDate)}`, 34, y)
 
   y += 48
-  drawRow(ctx, 'Received From', data.ownerName || '-', 34, y)
-  y += 42
-  drawRow(ctx, 'Site', `Site ${data.siteNo || '-'} · Phase ${data.phase || '-'}`, 34, y)
-  y += 42
-  drawRow(ctx, 'Payment Head', data.headName || data.headId || '-', 34, y)
-  y += 42
-  drawRow(ctx, 'Amount', formatCurrency(data.amount), 34, y)
-  y += 42
-  drawRow(ctx, 'Mode', data.mode || '-', 34, y)
-  y += 42
-  drawRow(ctx, 'Bank Ref / UTR', data.bankRef || '-', 34, y)
-  y += 42
-  drawRow(ctx, 'Payment Date', formatDate(data.paymentDate), 34, y)
-  y += 42
-  drawRow(ctx, 'Recorded By', data.recordedBy || '-', 34, y)
+  y = drawRow(ctx, 'Received From', data.ownerName || '-', 34, y, w)
+  y = drawRow(ctx, 'Site', `Site ${data.siteNo || '-'} · Phase ${data.phase || '-'}`, 34, y, w)
+  y = drawRow(ctx, 'Payment Head', data.headName || data.headId || '-', 34, y, w)
+  y = drawRow(ctx, 'Amount', formatCurrency(data.amount), 34, y, w)
+  y = drawRow(ctx, 'Mode', data.mode || '-', 34, y, w)
+  y = drawRow(ctx, 'Bank Ref / UTR', data.bankRef || '-', 34, y, w)
+  y = drawRow(ctx, 'Payment Date', formatDate(data.paymentDate), 34, y, w)
+  y = drawRow(ctx, 'Recorded By', data.recordedBy || '-', 34, y, w)
 
   y += 64
   ctx.strokeStyle = '#D7D4CB'
@@ -155,11 +148,50 @@ function drawReceipt(canvas, data, seal) {
   })
 }
 
-function drawRow(ctx, label, value, x, y) {
+function drawRow(ctx, label, value, x, y, canvasWidth) {
+  const labelWidth = 230
+  const valueX = x + labelWidth
+  const maxValueWidth = canvasWidth - valueX - 34
+  const valueLines = wrapTextLines(ctx, String(value || '-'), maxValueWidth, '600 20px Segoe UI, Arial, sans-serif')
+
   ctx.fillStyle = '#8A887F'
   ctx.font = '500 19px Segoe UI, Arial, sans-serif'
   ctx.fillText(label, x, y)
+
   ctx.fillStyle = '#2C2C2A'
   ctx.font = '600 20px Segoe UI, Arial, sans-serif'
-  ctx.fillText(String(value || '-'), x + 230, y)
+  const lineHeight = 28
+  valueLines.forEach((line, idx) => {
+    ctx.fillText(line, valueX, y + idx * lineHeight)
+  })
+
+  return y + Math.max(42, valueLines.length * lineHeight + 8)
+}
+
+function wrapTextLines(ctx, text, maxWidth, font) {
+  ctx.save()
+  ctx.font = font
+  const words = String(text || '').split(/\s+/).filter(Boolean)
+
+  if (!words.length) {
+    ctx.restore()
+    return ['-']
+  }
+
+  const lines = []
+  let current = words[0]
+
+  for (let i = 1; i < words.length; i += 1) {
+    const candidate = `${current} ${words[i]}`
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      current = candidate
+    } else {
+      lines.push(current)
+      current = words[i]
+    }
+  }
+  lines.push(current)
+
+  ctx.restore()
+  return lines
 }
