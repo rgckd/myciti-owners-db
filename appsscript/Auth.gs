@@ -86,3 +86,23 @@ function checkSheetAccess(email) {
     return { hasAccess: false, error: e.message };
   }
 }
+
+// Run once in the Apps Script editor to grant required OAuth scopes.
+function authorizeApp() {
+  const ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  const root = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_ID);
+  const props = PropertiesService.getScriptProperties().getProperties();
+  UrlFetchApp.fetch(CONFIG.TOKENINFO_URL + 'invalid', { muteHttpExceptions: true });
+
+  return {
+    ok: true,
+    spreadsheetTitle: ss.getName(),
+    driveRootName: root.getName(),
+    propertyCount: Object.keys(props).length,
+  };
+}
+
+// Typo-safe alias requested by user.
+function authorizapp() {
+  return authorizeApp();
+}
