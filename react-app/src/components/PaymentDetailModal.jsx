@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react'
 import { canEdit, formatCurrency, formatDate, toDateInput, PAYMENT_MODES } from '../utils/constants.js'
-import { updatePayment, deletePayment, uploadFileToDrive } from '../utils/api.js'
+import { updatePayment, deletePayment, uploadFileToDrive, generatePaymentReceipt } from '../utils/api.js'
+import PaymentReceiptModal from './PaymentReceiptModal.jsx'
 
 export default function PaymentDetailModal({ payment, site, heads, role, onClose, onSaved }) {
   const head = heads.find(h => h.HeadID === payment.HeadID)
@@ -18,6 +19,9 @@ export default function PaymentDetailModal({ payment, site, heads, role, onClose
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [generatingReceipt, setGeneratingReceipt] = useState(false)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [receiptData, setReceiptData] = useState(null)
   const [error, setError] = useState('')
   const fileInputRef = useRef(null)
   const canEditPayment = canEdit(role, 'payments')
@@ -87,6 +91,35 @@ export default function PaymentDetailModal({ payment, site, heads, role, onClose
     }
   }
 
+  async function handleGenerateReceipt() {
+    setGeneratingReceipt(true)
+    setError('')
+    try {
+      const result = await generatePaymentReceipt(payment.PaymentID)
+      setForm(f => ({ ...f, receiptNo: result.receiptNo }))
+      setReceiptData({
+        receiptNo: result.receiptNo,
+        issueDate: result.issueDate,
+        receiptDateKey: result.receiptDateKey,
+        ownerName: payment.OwnerName || payment.ownerName || '',
+        siteNo: displaySiteNo,
+        phase: displayPhase,
+        headName: head?.HeadName || payment.HeadID,
+        headId: payment.HeadID,
+        amount: payment.Amount,
+        mode: payment.Mode,
+        bankRef: payment.BankRef || '',
+        paymentDate: payment.PaymentDate,
+        recordedBy: payment.RecordedBy || '',
+      })
+      setShowReceiptModal(true)
+    } catch (e) {
+      setError(e.message || 'Failed to generate receipt')
+    } finally {
+      setGeneratingReceipt(false)
+    }
+  }
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
       <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 420, border: '1px solid var(--border)' }}>
@@ -98,7 +131,14 @@ export default function PaymentDetailModal({ payment, site, heads, role, onClose
               {payment.OwnerName ? ` — ${payment.OwnerName}` : ''}
             </div>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {canEditPayment && !editing && !confirmDelete && (
+              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--disputed)' }} onClick={() => setConfirmDelete(true)}>
+                Delete
+              </button>
+            )}
+            <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+          </div>
         </div>
 
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -239,9 +279,9 @@ export default function PaymentDetailModal({ payment, site, heads, role, onClose
 
         {!confirmDelete && (
           <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
-            {canEditPayment && !editing && (
-              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--disputed)' }} onClick={() => setConfirmDelete(true)}>
-                Delete
+            {!editing && (
+              <button className="btn btn-ghost btn-sm" onClick={handleGenerateReceipt} disabled={generatingReceipt}>
+                {generatingReceipt ? 'Generating...' : 'Generate receipt'}
               </button>
             )}
             <div style={{ flex: 1 }} />
@@ -263,6 +303,16 @@ export default function PaymentDetailModal({ payment, site, heads, role, onClose
           </div>
         )}
       </div>
+
+      {showReceiptModal && receiptData && (
+        <PaymentReceiptModal
+          receipt={receiptData}
+          onClose={() => {
+            setShowReceiptModal(false)
+            setReceiptData(null)
+          }}
+        />
+      )}
     </div>
   )
 }

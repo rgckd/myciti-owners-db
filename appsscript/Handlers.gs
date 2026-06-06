@@ -2,6 +2,41 @@
 
   function nowIsoTs_() { return new Date().toISOString(); }
 
+  function parseReceiptNoParts_(receiptNo) {
+    if (!receiptNo) return null;
+    const match = String(receiptNo).match(/^\s*(\d{8})\s*\/\s*(\d+)\s*$/);
+    if (!match) return null;
+    return { dateKey: match[1], seq: parseInt(match[2], 10) };
+  }
+
+  function yyyymmddToIsoDate_(dateKey) {
+    if (!dateKey || !/^\d{8}$/.test(String(dateKey))) return null;
+    const s = String(dateKey);
+    return `${s.substring(0, 4)}-${s.substring(4, 6)}-${s.substring(6, 8)}`;
+  }
+
+  function nextReceiptSequence_() {
+    const props = PropertiesService.getScriptProperties();
+    const key = 'LAST_RECEIPT_SEQ';
+    const currentRaw = props.getProperty(key);
+
+    // One-time initialization from existing receipts
+    if (!currentRaw) {
+      const allPayments = sheetToObjectsAll(CONFIG.TABS.PAYMENTS);
+      let maxSeq = 0;
+      allPayments.forEach(p => {
+        const parsed = parseReceiptNoParts_(p.ReceiptNo);
+        if (parsed) maxSeq = Math.max(maxSeq, parsed.seq);
+      });
+      props.setProperty(key, String(maxSeq));
+    }
+
+    const current = parseInt(props.getProperty(key) || '0', 10) || 0;
+    const next = current + 1;
+    props.setProperty(key, String(next));
+    return next;
+  }
+
   // ─── SITES ───────────────────────────────────────────────────────────────────
 
   function getSites(params) {
@@ -629,6 +664,51 @@
     const changes = updateRowFields(CONFIG.TABS.PAYMENTS, 'PaymentID', params.paymentId, fields, caller);
     writeAuditChanges(caller, 'Payments', params.paymentId, changes);
     return { updated: true };
+  }
+
+  function generatePaymentReceipt(params, caller) {
+    if (!params.paymentId) throw new Error('paymentId is required');
+
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      const payments = sheetToObjects(CONFIG.TABS.PAYMENTS);
+      const payment = payments.find(p => p.PaymentID === params.paymentId);
+      if (!payment) throw new Error('Payment not found: ' + params.paymentId);
+
+      let receiptNo = String(payment.ReceiptNo || '').trim();
+      if (!receiptNo) {
+        const todayKey = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd');
+        const seq = nextReceiptSequence_();
+        receiptNo = `${todayKey} / ${seq}`;
+
+        const changes = updateRowFields(
+          CONFIG.TABS.PAYMENTS,
+          'PaymentID',
+          params.paymentId,
+          { ReceiptNo: receiptNo },
+          caller
+        );
+        writeAuditChanges(caller, 'Payments', params.paymentId, changes);
+      }
+
+      const parsed = parseReceiptNoParts_(receiptNo);
+      const todayIso = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      let issueDate = parsed ? yyyymmddToIsoDate_(parsed.dateKey) : null;
+      if (!issueDate && /^\d{4}-\d{2}-\d{2}$/.test(String(payment.PaymentDate || ''))) {
+        issueDate = String(payment.PaymentDate);
+      }
+      issueDate = issueDate || todayIso;
+
+      return {
+        paymentId: params.paymentId,
+        receiptNo,
+        issueDate,
+        receiptDateKey: parsed ? parsed.dateKey : issueDate.replace(/-/g, ''),
+      };
+    } finally {
+      lock.releaseLock();
+    }
   }
 
   function getPaymentHeads() { return sheetToObjects(CONFIG.TABS.PAYMENT_HEADS); }
