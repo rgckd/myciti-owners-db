@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react'
-import { canEdit, formatCurrency, formatDate, toDateInput, PAYMENT_MODES } from '../utils/constants.js'
+import { canEdit, canGeneratePaymentReceipt, formatCurrency, formatDate, toDateInput, PAYMENT_MODES } from '../utils/constants.js'
 import { updatePayment, deletePayment, uploadFileToDrive, generatePaymentReceipt } from '../utils/api.js'
 import PaymentReceiptModal from './PaymentReceiptModal.jsx'
 
@@ -45,6 +45,7 @@ export default function PaymentDetailModal({ payment, site, currentOwners, heads
   const [error, setError] = useState('')
   const fileInputRef = useRef(null)
   const canEditPayment = canEdit(role, 'payments')
+  const canGenerateReceipt = canGeneratePaymentReceipt(role)
   const headOptions = useMemo(() => {
     const list = Array.isArray(heads) ? [...heads] : []
     if (payment.HeadID && !list.some(h => h.HeadID === payment.HeadID)) {
@@ -311,7 +312,7 @@ export default function PaymentDetailModal({ payment, site, currentOwners, heads
 
         {!confirmDelete && (
           <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
-            {!editing && (
+            {!editing && canGenerateReceipt && (
               <button className="btn btn-sm" onClick={handleGenerateReceipt} disabled={generatingReceipt}>
                 {generatingReceipt ? 'Generating...' : 'Generate receipt'}
               </button>

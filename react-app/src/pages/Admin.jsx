@@ -45,6 +45,9 @@ function UsersTab() {
   const [role, setRole]       = useState('View')
   const [checking, setChecking] = useState(false)
   const [saving, setSaving]   = useState(false)
+  const [editEmail, setEditEmail] = useState('')
+  const [editName, setEditName] = useState('')
+  const [updatingName, setUpdatingName] = useState(false)
   const [error, setError]     = useState('')
 
   async function load(silent = false) {
@@ -77,6 +80,37 @@ function UsersTab() {
     await updateUser({ email: userEmail, role: newRole })
     invalidateAssignableUsers()
     load(true)
+  }
+
+  function startNameEdit(user) {
+    setError('')
+    setEditEmail(user.UserEmail)
+    setEditName(user.DisplayName || '')
+  }
+
+  function cancelNameEdit() {
+    setEditEmail('')
+    setEditName('')
+  }
+
+  async function saveNameEdit(userEmail) {
+    const trimmed = editName.trim()
+    if (!trimmed) {
+      setError('Display name cannot be empty')
+      return
+    }
+    setUpdatingName(true)
+    setError('')
+    try {
+      await updateUser({ email: userEmail, displayName: trimmed })
+      invalidateAssignableUsers()
+      cancelNameEdit()
+      await load(true)
+    } catch (e) {
+      setError(e.message || 'Failed to update display name')
+    } finally {
+      setUpdatingName(false)
+    }
   }
 
   async function handleRemove(userEmail) {
@@ -117,7 +151,33 @@ function UsersTab() {
                 {(u.DisplayName || u.UserEmail || '?')[0].toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{u.DisplayName || u.UserEmail}</div>
+                {editEmail === u.UserEmail ? (
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <input
+                      className="input"
+                      style={{ maxWidth: 260, height: 30, fontSize: 12 }}
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      placeholder="Display name"
+                    />
+                    <button
+                      className="btn btn-sm"
+                      style={{ background: 'var(--tc)', color: '#fff', borderColor: 'var(--tc)' }}
+                      onClick={() => saveNameEdit(u.UserEmail)}
+                      disabled={updatingName}
+                    >
+                      {updatingName ? 'Saving...' : 'Save'}
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={cancelNameEdit} disabled={updatingName}>Cancel</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{u.DisplayName || u.UserEmail}</div>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => startNameEdit(u)}>
+                      Edit
+                    </button>
+                  </div>
+                )}
                 <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{u.UserEmail}</div>
                 <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>Added {formatDate(u.AddedAt)}</div>
               </div>

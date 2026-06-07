@@ -65,6 +65,11 @@ function requireFlag(role) {
   }
 }
 
+function requireReceiptGeneration(role) {
+  if (['Admin', 'Edit', 'Payments', 'Caller'].includes(role)) return;
+  throw new Error('Receipt generation requires Edit, Payments, or Caller access');
+}
+
 function requireAdmin(role) {
   if (role !== 'Admin') throw new Error('Admin access required');
 }

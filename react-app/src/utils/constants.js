@@ -117,3 +117,7 @@ export function canEdit(role, domain) {
 export function canFlag(role) {
   return ['Edit', 'Payments', 'Caller', 'Admin'].includes(role)
 }
+
+export function canGeneratePaymentReceipt(role) {
+  return ['Edit', 'Payments', 'Caller', 'Admin'].includes(role)
+}

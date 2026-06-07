@@ -1015,8 +1015,11 @@
   }
 
   function updateUser(params, caller) {
+    const fields = {};
+    if (params.role !== undefined) fields.Role = params.role;
+    if (params.displayName !== undefined) fields.DisplayName = params.displayName;
     const changes = updateRowFields(CONFIG.TABS.ROLES, 'UserEmail', params.email,
-      { Role: params.role }, caller);
+      fields, caller);
     writeAuditChanges(caller, 'Roles', params.email, changes);
     return { updated: true };
   }

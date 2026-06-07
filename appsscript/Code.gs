@@ -69,7 +69,7 @@ const ACTION_POLICY = {
   createPayment: { type: 'domain', domain: 'payments', level: 'edit' },
   updatePayment: { type: 'domain', domain: 'payments', level: 'edit' },
   deletePayment: { type: 'domain', domain: 'payments', level: 'edit' },
-  generatePaymentReceipt: { type: 'domain', domain: 'payments', level: 'edit' },
+  generatePaymentReceipt: { type: 'receipt' },
   getPaymentHeads: { type: 'domain', domain: 'payments', level: 'view' },
   createPaymentHead: { type: 'admin' },
   updatePaymentHead: { type: 'admin' },
@@ -123,6 +123,8 @@ function enforceActionPolicy(action, role, params) {
       return requireRole(role, policy.requiredRole);
     case 'domain':
       return requireDomain(role, policy.domain, policy.level);
+    case 'receipt':
+      return requireReceiptGeneration(role);
     case 'uploadFolder': {
       const folderType = String(params.type || '').trim();
       if (folderType === 'Payments') return requireDomain(role, 'payments', 'edit');
@@ -237,7 +239,7 @@ function handleRequest(e, method, params) {
       case 'createPayment':     requireDomain(role,'payments','edit'); return jsonResponse(createPayment(params, caller));
       case 'updatePayment':     requireDomain(role,'payments','edit'); return jsonResponse(updatePayment(params, caller, role));
       case 'deletePayment':     requireDomain(role,'payments','edit'); return jsonResponse(softDelete(CONFIG.TABS.PAYMENTS,'PaymentID',params.paymentId,caller));
-      case 'generatePaymentReceipt': requireDomain(role,'payments','edit'); return jsonResponse(generatePaymentReceipt(params, caller));
+      case 'generatePaymentReceipt': requireReceiptGeneration(role); return jsonResponse(generatePaymentReceipt(params, caller));
       case 'getPaymentHeads':   requireDomain(role,'payments','view'); return jsonResponse(getPaymentHeads());
       case 'createPaymentHead': requireAdmin(role);                    return jsonResponse(createPaymentHead(params, caller));
       case 'updatePaymentHead': requireAdmin(role);                    return jsonResponse(updatePaymentHead(params, caller));
