@@ -47,8 +47,7 @@ export default function PaymentReceiptModal({ receipt, onClose }) {
     }}>
       <div style={{
         background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 760,
-        border: '1px solid var(--border)', overflow: 'hidden', maxHeight: '92vh',
-        display: 'flex', flexDirection: 'column'
+        border: '1px solid var(--border)', overflow: 'hidden'
       }}>
         <div style={{
           padding: '14px 18px', borderBottom: '1px solid var(--border)',
@@ -58,7 +57,7 @@ export default function PaymentReceiptModal({ receipt, onClose }) {
           <button className="btn btn-ghost btn-sm" onClick={onClose}>x</button>
         </div>
 
-        <div style={{ padding: 16, background: 'var(--surface-2)', display: 'flex', justifyContent: 'center', overflow: 'auto', minHeight: 0 }}>
+        <div style={{ padding: 16, background: 'var(--surface-2)', display: 'flex', justifyContent: 'center' }}>
           <canvas
             ref={canvasRef}
             width={900}
